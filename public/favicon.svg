@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background Circle -->
+  <circle cx="50" cy="50" r="48" fill="#3b82f6" stroke="#1e40af" stroke-width="2"/>
+
+  <!-- Folder Icon -->
+  <path d="M25 35 L25 65 L75 65 L75 40 L55 40 L50 35 Z" fill="#60a5fa" stroke="#2563eb" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Upload Arrow -->
+  <path d="M45 50 L45 58 M45 50 L42 53 M45 50 L48 53" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Download Arrow -->
+  <path d="M55 58 L55 50 M55 58 L52 55 M55 58 L58 55" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

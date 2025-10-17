@@ -1,0 +1,2 @@
+# Deny all direct access to source files
+Require all denied
