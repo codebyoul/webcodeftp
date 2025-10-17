@@ -140,6 +140,11 @@ $router->get('/api/folder-tree', function () use ($config, $request, $response, 
     $controller->getFolderTree();
 });
 
+$router->get('/api/folder-contents', function () use ($config, $request, $response, $session) {
+    $controller = new DashboardController($config, $request, $response, $session);
+    $controller->getFolderContents();
+});
+
 // Dispatch request
 try {
     $method = $request->method();

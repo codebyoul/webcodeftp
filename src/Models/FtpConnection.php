@@ -233,7 +233,7 @@ class FtpConnection
     }
 
     /**
-     * Get recursive folder tree structure
+     * Get recursive folder tree structure (includes both folders and files)
      *
      * @param string $path Starting path (default: root)
      * @param int $maxDepth Maximum depth to scan (default: 10)
@@ -243,45 +243,131 @@ class FtpConnection
     public function getFolderTree(string $path = '/', int $maxDepth = 10, int $currentDepth = 0): array
     {
         if (!$this->isConnected() || $currentDepth >= $maxDepth) {
+            $this->logDebug("getFolderTree: Not connected or max depth reached", [
+                'connected' => $this->isConnected(),
+                'currentDepth' => $currentDepth,
+                'maxDepth' => $maxDepth
+            ]);
             return [];
         }
 
-        // Get list of items in directory
-        $items = @ftp_nlist($this->connection, $path);
+        $this->logDebug("getFolderTree: Fetching tree for path", ['path' => $path, 'depth' => $currentDepth]);
 
-        if ($items === false) {
+        // Save current directory
+        $currentDir = @ftp_pwd($this->connection);
+        $this->logDebug("getFolderTree: Current directory", ['currentDir' => $currentDir]);
+
+        // Change to the target directory first
+        // This is necessary because ftp_rawlist() doesn't support folders with spaces
+        if (!@ftp_chdir($this->connection, $path)) {
+            $this->logDebug("getFolderTree: Failed to change to directory", ['path' => $path]);
             return [];
         }
 
-        $tree = [];
+        $this->logDebug("getFolderTree: Successfully changed to directory", ['path' => $path]);
 
-        foreach ($items as $item) {
-            // Skip current and parent directory references
-            $basename = basename($item);
-            if ($basename === '.' || $basename === '..') {
+        // Use ftp_rawlist to get detailed directory listing of current directory
+        $rawList = @ftp_rawlist($this->connection, ".");
+
+        // Change back to original directory
+        if ($currentDir) {
+            @ftp_chdir($this->connection, $currentDir);
+        }
+
+        if ($rawList === false || empty($rawList)) {
+            $this->logDebug("getFolderTree: ftp_rawlist returned false or empty", ['path' => $path]);
+            return [];
+        }
+
+        $this->logDebug("getFolderTree: Got raw list", ['path' => $path, 'count' => count($rawList)]);
+
+        $folders = [];
+        $files = [];
+
+        foreach ($rawList as $line) {
+            $this->logDebug("getFolderTree: Processing line", ['line' => $line]);
+
+            // Parse the raw FTP list line (Unix format)
+            // Example: "drwxr-xr-x 2 user group 4096 Jan 01 12:00 foldername"
+            // Example: "-rw-r--r-- 1 user group 1234 Jan 01 12:00 filename.txt"
+            $parts = preg_split('/\s+/', $line, 9);
+
+            if (count($parts) < 9) {
+                $this->logDebug("getFolderTree: Line has less than 9 parts", ['parts_count' => count($parts)]);
                 continue;
             }
 
-            // Get full path
-            $fullPath = $path === '/' ? '/' . $basename : $path . '/' . $basename;
+            $permissions = $parts[0];
+            $name = $parts[8];
 
-            // Check if it's a directory
-            if ($this->isDirectory($fullPath)) {
-                $tree[] = [
-                    'name' => $basename,
+            $this->logDebug("getFolderTree: Parsed item", ['permissions' => $permissions, 'name' => $name]);
+
+            // Skip current and parent directory references
+            if ($name === '.' || $name === '..') {
+                continue;
+            }
+
+            // Normalize path
+            $fullPath = rtrim($path, '/') . '/' . $name;
+
+            // Check if it's a directory (first character is 'd')
+            if ($permissions[0] === 'd') {
+                $this->logDebug("getFolderTree: Found directory", ['name' => $name, 'fullPath' => $fullPath]);
+
+                $folders[] = [
+                    'name' => $name,
                     'path' => $fullPath,
                     'type' => 'directory',
                     'children' => [] // Children loaded on demand
                 ];
+            } else {
+                // It's a file
+                $this->logDebug("getFolderTree: Found file", ['name' => $name, 'fullPath' => $fullPath]);
+
+                $files[] = [
+                    'name' => $name,
+                    'path' => $fullPath,
+                    'type' => 'file',
+                    'size' => isset($parts[4]) ? (int)$parts[4] : 0,
+                    'permissions' => $permissions
+                ];
             }
         }
 
-        // Sort folders alphabetically
-        usort($tree, function($a, $b) {
+        // Sort folders and files alphabetically
+        usort($folders, function($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
 
+        usort($files, function($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        // Combine folders first, then files
+        $tree = array_merge($folders, $files);
+
+        $this->logDebug("getFolderTree: Returning tree", [
+            'path' => $path,
+            'folder_count' => count($folders),
+            'file_count' => count($files),
+            'total_count' => count($tree)
+        ]);
+
         return $tree;
+    }
+
+    /**
+     * Log debug information
+     */
+    private function logDebug(string $message, array $context = []): void
+    {
+        if ($this->config['logging']['enabled']) {
+            $logPath = $this->config['logging']['log_path'];
+            $timestamp = date('Y-m-d H:i:s');
+            $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
+            $logMessage = "[{$timestamp}] [FTP_DEBUG] {$message}{$contextStr}\n";
+            @error_log($logMessage, 3, $logPath);
+        }
     }
 
     /**
@@ -293,39 +379,74 @@ class FtpConnection
     public function getDirectoryContents(string $directory = '/'): array
     {
         if (!$this->isConnected()) {
+            $this->logDebug("getDirectoryContents: Not connected");
             return ['folders' => [], 'files' => []];
         }
 
-        $items = @ftp_nlist($this->connection, $directory);
+        $this->logDebug("getDirectoryContents: Fetching contents for directory", ['directory' => $directory]);
 
-        if ($items === false) {
+        // Save current directory
+        $currentDir = @ftp_pwd($this->connection);
+
+        // Change to the target directory first
+        if (!@ftp_chdir($this->connection, $directory)) {
+            $this->logDebug("getDirectoryContents: Failed to change to directory", ['directory' => $directory]);
             return ['folders' => [], 'files' => []];
         }
+
+        // Use ftp_rawlist to get detailed directory listing
+        $rawList = @ftp_rawlist($this->connection, ".");
+
+        // Change back to original directory
+        if ($currentDir) {
+            @ftp_chdir($this->connection, $currentDir);
+        }
+
+        if ($rawList === false || empty($rawList)) {
+            $this->logDebug("getDirectoryContents: ftp_rawlist returned false or empty", ['directory' => $directory]);
+            return ['folders' => [], 'files' => []];
+        }
+
+        $this->logDebug("getDirectoryContents: Got raw list", ['directory' => $directory, 'count' => count($rawList)]);
 
         $folders = [];
         $files = [];
 
-        foreach ($items as $item) {
-            $basename = basename($item);
+        foreach ($rawList as $line) {
+            // Parse the raw FTP list line (Unix format)
+            // Example: "drwxr-xr-x 2 user group 4096 Jan 01 12:00 foldername"
+            // Example: "-rw-r--r-- 1 user group 1234 Jan 01 12:00 filename.txt"
+            $parts = preg_split('/\s+/', $line, 9);
 
-            // Skip current and parent directory references
-            if ($basename === '.' || $basename === '..') {
+            if (count($parts) < 9) {
                 continue;
             }
 
-            $fullPath = $directory === '/' ? '/' . $basename : $directory . '/' . $basename;
+            $permissions = $parts[0];
+            $name = $parts[8];
 
-            if ($this->isDirectory($fullPath)) {
+            // Skip current and parent directory references
+            if ($name === '.' || $name === '..') {
+                continue;
+            }
+
+            // Normalize path
+            $fullPath = rtrim($directory, '/') . '/' . $name;
+
+            // Check if it's a directory (first character is 'd')
+            if ($permissions[0] === 'd') {
                 $folders[] = [
-                    'name' => $basename,
+                    'name' => $name,
                     'path' => $fullPath,
                     'type' => 'directory'
                 ];
             } else {
                 $files[] = [
-                    'name' => $basename,
+                    'name' => $name,
                     'path' => $fullPath,
-                    'type' => 'file'
+                    'type' => 'file',
+                    'size' => (int)$parts[4],
+                    'permissions' => $permissions
                 ];
             }
         }
@@ -338,6 +459,12 @@ class FtpConnection
         usort($files, function($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
+
+        $this->logDebug("getDirectoryContents: Returning contents", [
+            'directory' => $directory,
+            'folder_count' => count($folders),
+            'file_count' => count($files)
+        ]);
 
         return [
             'folders' => $folders,

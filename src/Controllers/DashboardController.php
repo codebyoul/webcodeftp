@@ -50,6 +50,7 @@ class DashboardController
             'language' => $language,
             'language_cookie_name' => $this->config['localization']['language_cookie_name'],
             'language_cookie_lifetime' => $this->config['localization']['language_cookie_lifetime'],
+            'file_icons' => $this->config['file_icons'],
         ]);
     }
 
@@ -110,6 +111,106 @@ class DashboardController
     {
         // Check authentication
         if (!$this->session->isAuthenticated()) {
+            $this->logDebug("getFolderTree API: Unauthorized");
+            $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Get FTP credentials from session
+        $ftpHost = $this->session->get('ftp_host');
+        $ftpUsername = $this->session->get('ftp_username');
+        $ftpPassword = $this->session->get('ftp_password');
+
+        $this->logDebug("getFolderTree API: Starting", ['ftpHost' => $ftpHost, 'ftpUsername' => $ftpUsername]);
+
+        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
+            $this->logDebug("getFolderTree API: FTP credentials not found in session");
+            $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
+        }
+
+        try {
+            // Initialize FTP connection
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
+
+            // Connect to FTP server
+            $ftpConfig = $this->config['ftp']['server'];
+            $this->logDebug("getFolderTree API: Connecting to FTP", [
+                'host' => $ftpConfig['host'],
+                'port' => $ftpConfig['port'],
+                'use_ssl' => $ftpConfig['use_ssl']
+            ]);
+
+            $connectionResult = $ftp->connect(
+                $ftpConfig['host'],
+                $ftpConfig['port'],
+                $ftpUsername,
+                $ftpPassword,
+                $ftpConfig['use_ssl'],
+                $ftpConfig['passive_mode']
+            );
+
+            if (!$connectionResult['success']) {
+                $this->logDebug("getFolderTree API: Connection failed", ['message' => $connectionResult['message']]);
+                $this->response->json([
+                    'success' => false,
+                    'message' => $connectionResult['message']
+                ]);
+            }
+
+            $this->logDebug("getFolderTree API: Connected successfully");
+
+            // Get path from request (default to root)
+            $path = $this->request->get('path', '/');
+            $this->logDebug("getFolderTree API: Requested path", ['path' => $path]);
+
+            // Sanitize path
+            $sanitizedPath = $security->sanitizePath($path);
+            if ($sanitizedPath === null) {
+                $this->logDebug("getFolderTree API: Invalid path", ['path' => $path]);
+                $this->response->json([
+                    'success' => false,
+                    'message' => 'Invalid path'
+                ]);
+            }
+
+            $this->logDebug("getFolderTree API: Sanitized path", ['sanitizedPath' => $sanitizedPath]);
+
+            // Get folder tree
+            $tree = $ftp->getFolderTree($sanitizedPath);
+
+            $this->logDebug("getFolderTree API: Got tree", ['folder_count' => count($tree)]);
+
+            // Disconnect
+            $ftp->disconnect();
+
+            $this->logDebug("getFolderTree API: Disconnected, returning response");
+
+            $this->response->json([
+                'success' => true,
+                'tree' => $tree,
+                'path' => $sanitizedPath
+            ]);
+
+        } catch (\Exception $e) {
+            $this->logDebug("getFolderTree API: Exception", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            $this->response->json([
+                'success' => false,
+                'message' => 'Error retrieving folder tree'
+            ]);
+        }
+    }
+
+    /**
+     * Get folder contents (folders and files)
+     */
+    public function getFolderContents(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
             $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -157,23 +258,38 @@ class DashboardController
                 ]);
             }
 
-            // Get folder tree
-            $tree = $ftp->getFolderTree($sanitizedPath);
+            // Get directory contents
+            $contents = $ftp->getDirectoryContents($sanitizedPath);
 
             // Disconnect
             $ftp->disconnect();
 
             $this->response->json([
                 'success' => true,
-                'tree' => $tree,
-                'path' => $sanitizedPath
+                'path' => $sanitizedPath,
+                'folders' => $contents['folders'],
+                'files' => $contents['files']
             ]);
 
         } catch (\Exception $e) {
             $this->response->json([
                 'success' => false,
-                'message' => 'Error retrieving folder tree'
+                'message' => 'Error retrieving folder contents'
             ]);
+        }
+    }
+
+    /**
+     * Log debug information
+     */
+    private function logDebug(string $message, array $context = []): void
+    {
+        if ($this->config['logging']['enabled']) {
+            $logPath = $this->config['logging']['log_path'];
+            $timestamp = date('Y-m-d H:i:s');
+            $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
+            $logMessage = "[{$timestamp}] [CONTROLLER_DEBUG] {$message}{$contextStr}\n";
+            @error_log($logMessage, 3, $logPath);
         }
     }
 }

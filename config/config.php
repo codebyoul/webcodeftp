@@ -173,4 +173,95 @@ return [
         'enable_caching' => false, // Cache static resources (future feature)
     ],
 
+    // ============================================================================
+    // FILE ICON MAPPING (Font Awesome Icons)
+    // ============================================================================
+    // Configure file type icons for the sidebar tree view.
+    // Each category has extensions and a Font Awesome icon class.
+    // You can add new categories or modify existing ones.
+    //
+    // Icon format: "fas fa-icon-name text-color-shade dark:text-color-shade"
+    // Available colors: blue, green, red, purple, yellow, orange, gray, etc.
+    // Available shades: 400, 500, 600, etc.
+
+    'file_icons' => [
+        // Programming & Script Files
+        'code' => [
+            'extensions' => ['php', 'js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'go', 'rb', 'swift', 'kt', 'rs', 'scala', 'r', 'pl', 'lua'],
+            'icon' => 'fas fa-file-code text-blue-500 dark:text-blue-400',
+        ],
+
+        // Markup & Style Files
+        'web' => [
+            'extensions' => ['html', 'htm', 'css', 'scss', 'sass', 'less'],
+            'icon' => 'fas fa-file-code text-green-500 dark:text-green-400',
+        ],
+
+        // Configuration & Text Files
+        'text' => [
+            'extensions' => ['txt', 'md', 'json', 'xml', 'yml', 'yaml', 'toml', 'ini', 'conf', 'config', 'env', 'properties'],
+            'icon' => 'fas fa-file-lines text-gray-500 dark:text-gray-400',
+        ],
+
+        // Image Files
+        'image' => [
+            'extensions' => ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'ico', 'bmp', 'tiff', 'psd', 'ai'],
+            'icon' => 'fas fa-file-image text-purple-500 dark:text-purple-400',
+        ],
+
+        // Archive Files
+        'archive' => [
+            'extensions' => ['zip', 'rar', 'tar', 'gz', 'bz2', '7z', 'tgz', 'xz', 'iso'],
+            'icon' => 'fas fa-file-zipper text-orange-500 dark:text-orange-400',
+        ],
+
+        // Document Files
+        'document' => [
+            'extensions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'],
+            'icon' => 'fas fa-file-pdf text-red-500 dark:text-red-400',
+        ],
+
+        // Video Files
+        'video' => [
+            'extensions' => ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpeg', 'mpg'],
+            'icon' => 'fas fa-file-video text-pink-500 dark:text-pink-400',
+        ],
+
+        // Audio Files
+        'audio' => [
+            'extensions' => ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'opus'],
+            'icon' => 'fas fa-file-audio text-indigo-500 dark:text-indigo-400',
+        ],
+
+        // Database Files
+        'database' => [
+            'extensions' => ['sql', 'db', 'sqlite', 'mdb', 'accdb'],
+            'icon' => 'fas fa-database text-cyan-500 dark:text-cyan-400',
+        ],
+
+        // Log Files
+        'log' => [
+            'extensions' => ['log'],
+            'icon' => 'fas fa-file-lines text-yellow-600 dark:text-yellow-500',
+        ],
+
+        // Certificate & Key Files
+        'certificate' => [
+            'extensions' => ['pem', 'crt', 'cer', 'key', 'p12', 'pfx', 'csr'],
+            'icon' => 'fas fa-certificate text-amber-600 dark:text-amber-500',
+        ],
+
+        // Font Files
+        'font' => [
+            'extensions' => ['ttf', 'otf', 'woff', 'woff2', 'eot'],
+            'icon' => 'fas fa-font text-slate-500 dark:text-slate-400',
+        ],
+
+        // Default fallback icon
+        'default' => [
+            'extensions' => [],
+            'icon' => 'fas fa-file text-gray-400 dark:text-gray-500',
+        ],
+    ],
+
 ];
