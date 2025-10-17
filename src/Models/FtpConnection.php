@@ -300,7 +300,16 @@ class FtpConnection
             $permissions = $parts[0];
             $name = $parts[8];
 
-            $this->logDebug("getFolderTree: Parsed item", ['permissions' => $permissions, 'name' => $name]);
+            // Parse date/time (parts 5, 6, 7)
+            // Format: "Jan 01 12:00" or "Jan 01 2024"
+            $month = $parts[5] ?? '';
+            $day = $parts[6] ?? '';
+            $timeOrYear = $parts[7] ?? '';
+
+            // Format the date
+            $modified = $this->formatModifiedDate($month, $day, $timeOrYear);
+
+            $this->logDebug("getFolderTree: Parsed item", ['permissions' => $permissions, 'name' => $name, 'modified' => $modified]);
 
             // Skip current and parent directory references
             if ($name === '.' || $name === '..') {
@@ -318,6 +327,8 @@ class FtpConnection
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'directory',
+                    'modified' => $modified,
+                    'permissions' => $permissions,
                     'children' => [] // Children loaded on demand
                 ];
             } else {
@@ -329,6 +340,7 @@ class FtpConnection
                     'path' => $fullPath,
                     'type' => 'file',
                     'size' => isset($parts[4]) ? (int)$parts[4] : 0,
+                    'modified' => $modified,
                     'permissions' => $permissions
                 ];
             }
@@ -425,6 +437,14 @@ class FtpConnection
             $permissions = $parts[0];
             $name = $parts[8];
 
+            // Parse date/time (parts 5, 6, 7)
+            $month = $parts[5] ?? '';
+            $day = $parts[6] ?? '';
+            $timeOrYear = $parts[7] ?? '';
+
+            // Format the date
+            $modified = $this->formatModifiedDate($month, $day, $timeOrYear);
+
             // Skip current and parent directory references
             if ($name === '.' || $name === '..') {
                 continue;
@@ -438,7 +458,9 @@ class FtpConnection
                 $folders[] = [
                     'name' => $name,
                     'path' => $fullPath,
-                    'type' => 'directory'
+                    'type' => 'directory',
+                    'modified' => $modified,
+                    'permissions' => $permissions
                 ];
             } else {
                 $files[] = [
@@ -446,6 +468,7 @@ class FtpConnection
                     'path' => $fullPath,
                     'type' => 'file',
                     'size' => (int)$parts[4],
+                    'modified' => $modified,
                     'permissions' => $permissions
                 ];
             }
@@ -470,6 +493,42 @@ class FtpConnection
             'folders' => $folders,
             'files' => $files
         ];
+    }
+
+    /**
+     * Format modified date from FTP rawlist format
+     * Simple format: DD/MM/YYYY HH:MM
+     *
+     * @param string $month Month name (e.g., "Jan", "Feb")
+     * @param string $day Day of month (e.g., "01", "15")
+     * @param string $timeOrYear Time (e.g., "12:30") or Year (e.g., "2024")
+     * @return string Formatted date string (DD/MM/YYYY HH:MM or DD/MM/YYYY)
+     */
+    private function formatModifiedDate(string $month, string $day, string $timeOrYear): string
+    {
+        if (empty($month) || empty($day) || empty($timeOrYear)) {
+            return '-';
+        }
+
+        // Month mapping (English FTP format)
+        $months = [
+            'Jan' => '01', 'Feb' => '02', 'Mar' => '03', 'Apr' => '04',
+            'May' => '05', 'Jun' => '06', 'Jul' => '07', 'Aug' => '08',
+            'Sep' => '09', 'Oct' => '10', 'Nov' => '11', 'Dec' => '12'
+        ];
+
+        $monthNum = $months[$month] ?? '01';
+        $currentYear = date('Y');
+        $dayNum = str_pad($day, 2, '0', STR_PAD_LEFT);
+
+        // Check if it's a time (contains :) or a year
+        if (strpos($timeOrYear, ':') !== false) {
+            // It's a time, assume current year - format: DD/MM/YYYY HH:MM
+            return "{$dayNum}/{$monthNum}/{$currentYear} {$timeOrYear}";
+        } else {
+            // It's a year (old file) - format: DD/MM/YYYY
+            return "{$dayNum}/{$monthNum}/{$timeOrYear}";
+        }
     }
 
     /**

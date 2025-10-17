@@ -143,36 +143,36 @@
         <div class="flex flex-1 overflow-hidden">
 
             <!-- Left Sidebar: Folder Tree -->
-            <aside id="sidebar" class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col" style="width: 256px; min-width: 180px; max-width: 600px;">
+            <aside id="sidebar" class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col" style="width: 260px; min-width: 200px; max-width: 600px;">
                 <!-- Explorer Header -->
-                <div class="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Explorer</h3>
+                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Explorer</h3>
                 </div>
 
                 <!-- Folder Tree -->
-                <div class="flex-1 overflow-y-auto p-2">
+                <div class="flex-1 overflow-y-auto p-3">
                     <!-- Loading State -->
-                    <div id="treeLoading" class="flex items-center justify-center py-8">
+                    <div id="treeLoading" class="flex items-center justify-center py-10">
                         <div class="text-center">
-                            <i class="fas fa-spinner fa-spin text-2xl text-gray-400 dark:text-gray-500 mb-2"></i>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Loading folders...</p>
+                            <i class="fas fa-spinner fa-spin text-3xl text-gray-400 dark:text-gray-500 mb-3"></i>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Loading folders...</p>
                         </div>
                     </div>
 
                     <!-- Tree Container -->
-                    <div id="folderTree" class="space-y-0.5 hidden"></div>
+                    <div id="folderTree" class="space-y-1 hidden"></div>
 
                     <!-- Error State -->
-                    <div id="treeError" class="hidden px-3 py-4 text-center">
-                        <i class="fas fa-exclamation-triangle text-yellow-500 text-xl mb-2"></i>
-                        <p class="text-xs text-gray-600 dark:text-gray-400">Unable to load folders</p>
-                        <button id="retryLoadTree" class="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:underline">Retry</button>
+                    <div id="treeError" class="hidden px-4 py-6 text-center">
+                        <i class="fas fa-exclamation-triangle text-yellow-500 text-2xl mb-3"></i>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Unable to load folders</p>
+                        <button id="retryLoadTree" class="mt-3 text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium">Retry</button>
                     </div>
                 </div>
 
                 <!-- Status Bar -->
-                <div class="px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">
                         <span id="selectedCount">0</span> items selected
                     </p>
                 </div>
@@ -262,94 +262,48 @@
                     </div>
 
                 <!-- List View (Table) -->
-                <div id="listView" class="h-full hidden">
+                <div id="listView" class="h-full hidden overflow-auto">
                     <table class="w-full text-sm">
+                        <colgroup>
+                            <col style="width: 3%;">
+                            <col style="width: 45%;">
+                            <col style="width: 13%;">
+                            <col style="width: 25%;">
+                            <col style="width: 14%;">
+                        </colgroup>
                         <thead class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                                    <input type="checkbox" class="rounded border-gray-300 dark:border-gray-600">
+                                    <i class="fas fa-check-square text-base"></i>
                                 </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Size</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Modified</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Owner</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Group</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Permissions</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-primary-500 dark:hover:text-primary-400 transition" onclick="sortListView('name')">
+                                    <div class="flex items-center gap-2">
+                                        Name
+                                        <i class="fas fa-sort text-xs opacity-50"></i>
+                                    </div>
+                                </th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-primary-500 dark:hover:text-primary-400 transition" onclick="sortListView('size')">
+                                    <div class="flex items-center justify-end gap-2">
+                                        Size
+                                        <i class="fas fa-sort text-xs opacity-50"></i>
+                                    </div>
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-primary-500 dark:hover:text-primary-400 transition" onclick="sortListView('modified')">
+                                    <div class="flex items-center gap-2">
+                                        Modified
+                                        <i class="fas fa-sort text-xs opacity-50"></i>
+                                    </div>
+                                </th>
+                                <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-primary-500 dark:hover:text-primary-400 transition" onclick="sortListView('permissions')">
+                                    <div class="flex items-center justify-center gap-2">
+                                        Permissions
+                                        <i class="fas fa-sort text-xs opacity-50"></i>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            <!-- Sample Folders -->
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
-                                <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-folder text-yellow-500 mr-3"></i>
-                                        <span class="text-gray-900 dark:text-white font-medium">composer</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">-</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2025-10-16 22:58</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">750</td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
-                                <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-folder text-yellow-500 mr-3"></i>
-                                        <span class="text-gray-900 dark:text-white font-medium">.ssh</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">-</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2025-10-16 22:58</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">700</td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
-                                <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-folder text-yellow-500 mr-3"></i>
-                                        <span class="text-gray-900 dark:text-white font-medium">backup</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">-</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2025-10-16 22:58</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">755</td>
-                            </tr>
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
-                                <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-folder text-yellow-500 mr-3"></i>
-                                        <span class="text-gray-900 dark:text-white font-medium">web</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">-</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2025-10-17 16:12</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">710</td>
-                            </tr>
-                            <!-- Sample File -->
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition">
-                                <td class="px-4 py-3"><input type="checkbox" class="rounded border-gray-300 dark:border-gray-600"></td>
-                                <td class="px-4 py-3">
-                                    <div class="flex items-center">
-                                        <i class="fas fa-file text-gray-400 dark:text-gray-500 mr-3"></i>
-                                        <span class="text-gray-900 dark:text-white">document.pdf</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2.4 MB</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">2025-10-17 15:22</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">5005</td>
-                                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">644</td>
-                            </tr>
+                        <tbody id="listViewBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- Dynamic content will be inserted here -->
                         </tbody>
                     </table>
                 </div>
@@ -480,22 +434,23 @@
 
                 // Create button
                 const button = document.createElement('button');
-                button.className = 'flex items-center w-full px-2 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition';
+                button.className = 'flex items-center w-full px-2 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition';
                 button.style.paddingLeft = (level * 12 + 8) + 'px';
 
                 if (item.type === 'directory') {
                     // Arrow icon for folders
                     const arrow = document.createElement('i');
-                    arrow.className = 'fas fa-chevron-right text-xs text-gray-400 dark:text-gray-500 mr-1.5 transition-transform';
+                    arrow.className = 'fas fa-chevron-right text-xs text-gray-400 dark:text-gray-500 mr-2 transition-transform';
                     button.appendChild(arrow);
 
                     // Folder icon
                     const folderIcon = document.createElement('i');
-                    folderIcon.className = level === 0 ? 'fas fa-folder text-primary-500 mr-2' : 'fas fa-folder text-yellow-500 mr-2';
+                    folderIcon.className = level === 0 ? 'fas fa-folder text-base text-primary-500 mr-2' : 'fas fa-folder text-base text-yellow-500 mr-2';
                     button.appendChild(folderIcon);
 
                     // Folder name
                     const span = document.createElement('span');
+                    span.className = 'text-sm font-medium';
                     span.textContent = item.name;
                     button.appendChild(span);
 
@@ -522,18 +477,18 @@
 
                     // Spacer to align with folders (same width as arrow)
                     const spacer = document.createElement('span');
-                    spacer.className = 'inline-block w-4 mr-1.5';
+                    spacer.className = 'inline-block w-4 mr-2';
                     button.appendChild(spacer);
 
                     // File icon based on extension
                     const fileIcon = document.createElement('i');
-                    fileIcon.className = getFileIcon(item.name) + ' mr-2 text-xs';
+                    fileIcon.className = getFileIcon(item.name).replace(/text-\w+/g, 'text-base') + ' mr-2';
                     button.appendChild(fileIcon);
 
                     // File name
                     const span = document.createElement('span');
                     span.textContent = item.name;
-                    span.className = 'text-xs';
+                    span.className = 'text-sm';
                     button.appendChild(span);
 
                     // Click handler for files - show file info in main content
@@ -599,9 +554,9 @@
             function loadFolderChildren(path, container, level) {
                 // Show loading indicator
                 const loading = document.createElement('div');
-                loading.className = 'flex items-center px-2 py-1 text-xs text-gray-500 dark:text-gray-400';
-                loading.style.paddingLeft = (level * 12 + 8) + 'px';
-                loading.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+                loading.className = 'flex items-center px-3 py-2 text-sm text-gray-500 dark:text-gray-400';
+                loading.style.paddingLeft = (level * 16 + 12) + 'px';
+                loading.innerHTML = '<i class="fas fa-spinner fa-spin mr-2 text-base"></i>Loading...';
                 container.appendChild(loading);
 
                 fetch('/api/folder-tree?path=' + encodeURIComponent(path))
@@ -615,8 +570,8 @@
                         } else if (data.tree.length === 0) {
                             // Empty folder
                             const empty = document.createElement('div');
-                            empty.className = 'px-2 py-1 text-xs text-gray-400 dark:text-gray-500 italic';
-                            empty.style.paddingLeft = (level * 12 + 8) + 'px';
+                            empty.className = 'px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic';
+                            empty.style.paddingLeft = (level * 16 + 12) + 'px';
                             empty.textContent = 'Empty';
                             container.appendChild(empty);
                         }
@@ -625,8 +580,8 @@
                         console.error('Error loading folder children:', error);
                         container.innerHTML = '';
                         const errorMsg = document.createElement('div');
-                        errorMsg.className = 'px-2 py-1 text-xs text-red-500';
-                        errorMsg.style.paddingLeft = (level * 12 + 8) + 'px';
+                        errorMsg.className = 'px-3 py-2 text-sm text-red-500';
+                        errorMsg.style.paddingLeft = (level * 16 + 12) + 'px';
                         errorMsg.textContent = 'Error loading';
                         container.appendChild(errorMsg);
                     });
@@ -673,7 +628,7 @@
             let startX = 0;
             let startWidth = 0;
 
-            // Apply saved width from localStorage
+            // Apply saved width from localStorage (default is 280px now)
             const savedWidth = localStorage.getItem('sidebarWidth');
             if (savedWidth) {
                 sidebar.style.width = savedWidth + 'px';
@@ -751,14 +706,19 @@
                         if (contentLoading) contentLoading.classList.add('hidden');
 
                         if (data.success) {
-                            // Render contents in grid view (elite design)
+                            // Render contents in BOTH views
                             renderEliteGrid(data.folders, data.files, path);
-                            gridView.classList.remove('hidden');
-                            listView.classList.add('hidden');
+                            renderListView(data.folders, data.files, path);
 
-                            // Update view toggle states to show grid is active
-                            document.getElementById('viewToggleGrid').className = 'p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition';
-                            document.getElementById('viewToggleList').className = 'p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition';
+                            // Show the appropriate view based on user preference
+                            const currentView = localStorage.getItem('fileManagerView') || 'list';
+                            if (currentView === 'list') {
+                                listView.classList.remove('hidden');
+                                gridView.classList.add('hidden');
+                            } else {
+                                gridView.classList.remove('hidden');
+                                listView.classList.add('hidden');
+                            }
                         } else {
                             // Show error
                             if (contentEmpty) {
@@ -784,7 +744,7 @@
                 const gridView = document.getElementById('gridView');
 
                 // Create elite grid container
-                gridView.innerHTML = '<div class="p-8"><div id="eliteGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-6"></div></div>';
+                gridView.innerHTML = '<div class="p-6"><div id="eliteGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5"></div></div>';
 
                 const eliteGrid = document.getElementById('eliteGrid');
 
@@ -811,7 +771,7 @@
              */
             function createEliteCard(item, type, currentPath) {
                 const card = document.createElement('div');
-                card.className = 'group relative bg-white dark:bg-gray-800 rounded-xl p-6 border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-2xl hover:scale-105 transform transition-all duration-300 cursor-pointer';
+                card.className = 'group relative bg-white dark:bg-gray-800 rounded-xl p-5 border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-2xl hover:scale-105 transform transition-all duration-300 cursor-pointer';
 
                 // Add click handler
                 card.addEventListener('click', function() {
@@ -830,9 +790,9 @@
                 // Icon
                 const icon = document.createElement('i');
                 if (type === 'folder') {
-                    icon.className = 'fas fa-folder text-7xl text-yellow-500 dark:text-yellow-400 mb-4 group-hover:scale-110 transition-transform duration-300';
+                    icon.className = 'fas fa-folder text-5xl text-yellow-500 dark:text-yellow-400 mb-4 group-hover:scale-110 transition-transform duration-300';
                 } else {
-                    icon.className = getFileIcon(item.name).replace('text-xs', 'text-7xl') + ' mb-4 group-hover:scale-110 transition-transform duration-300';
+                    icon.className = getFileIcon(item.name).replace(/text-\w+/g, 'text-5xl') + ' mb-4 group-hover:scale-110 transition-transform duration-300';
                 }
                 iconContainer.appendChild(icon);
 
@@ -840,7 +800,7 @@
                 const name = document.createElement('div');
                 name.className = 'text-center w-full';
                 const nameSpan = document.createElement('span');
-                nameSpan.className = 'text-sm font-semibold text-gray-900 dark:text-white block truncate px-2';
+                nameSpan.className = 'text-sm font-medium text-gray-900 dark:text-white block truncate px-2';
                 nameSpan.textContent = item.name;
                 nameSpan.title = item.name; // Tooltip for full name
                 name.appendChild(nameSpan);
@@ -868,6 +828,32 @@
                 const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            /**
+             * Convert Unix permissions to octal format
+             * Example: "drwxr-xr-x" -> "755"
+             * Example: "-rw-r--r--" -> "644"
+             */
+            function convertPermissionsToOctal(permissions) {
+                if (!permissions || permissions.length < 10) {
+                    return '-';
+                }
+
+                // Remove the first character (file type: d, -, l, etc.)
+                const perms = permissions.substring(1);
+
+                // Calculate octal for each triplet (owner, group, others)
+                let octal = '';
+                for (let i = 0; i < 9; i += 3) {
+                    let value = 0;
+                    if (perms[i] === 'r') value += 4;
+                    if (perms[i + 1] === 'w') value += 2;
+                    if (perms[i + 2] === 'x' || perms[i + 2] === 's' || perms[i + 2] === 't') value += 1;
+                    octal += value;
+                }
+
+                return octal;
             }
 
             /**
@@ -900,33 +886,39 @@
                         <div class="text-center px-8 max-w-2xl">
                             <!-- File Icon with glow effect -->
                             <div class="relative inline-block mb-6">
-                                <div class="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-3xl blur-2xl opacity-20 animate-pulse"></div>
-                                <div class="relative bg-white dark:bg-gray-800 rounded-3xl p-12 shadow-2xl border-2 border-gray-200 dark:border-gray-700">
-                                    <i class="${iconClasses} text-9xl"></i>
+                                <div class="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl blur-xl opacity-20 animate-pulse"></div>
+                                <div class="relative bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-xl border-2 border-gray-200 dark:border-gray-700">
+                                    <i class="${iconClasses} text-7xl"></i>
                                 </div>
                             </div>
 
                             <!-- File Name -->
-                            <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-3 break-all">${escapeHtml(file.name)}</h2>
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 break-all">${escapeHtml(file.name)}</h2>
 
                             <!-- File Details -->
                             <div class="flex items-center justify-center gap-6 text-gray-600 dark:text-gray-400 mb-8">
                                 ${file.size ? `
                                     <div class="flex items-center gap-2">
-                                        <i class="fas fa-file-lines"></i>
-                                        <span class="text-lg font-semibold">${formatFileSize(file.size)}</span>
+                                        <i class="fas fa-file-lines text-base"></i>
+                                        <span class="text-base font-medium">${formatFileSize(file.size)}</span>
                                     </div>
                                 ` : ''}
                                 <div class="flex items-center gap-2">
-                                    <i class="fas fa-shield-halved"></i>
-                                    <span class="text-lg font-mono">${file.permissions || 'N/A'}</span>
+                                    <i class="fas fa-shield-halved text-base"></i>
+                                    <span class="text-base font-mono">${convertPermissionsToOctal(file.permissions)}</span>
                                 </div>
+                                ${file.modified ? `
+                                    <div class="flex items-center gap-2">
+                                        <i class="fas fa-clock text-base"></i>
+                                        <span class="text-base">${file.modified}</span>
+                                    </div>
+                                ` : ''}
                             </div>
 
                             <!-- Preview Button (Small & Elegant) -->
                             <div class="flex items-center justify-center">
-                                <button onclick="previewFile('${escapeHtml(file.path)}')" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
-                                    <i class="fas fa-eye"></i>
+                                <button onclick="previewFile('${escapeHtml(file.path)}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
+                                    <i class="fas fa-eye text-sm"></i>
                                     <span>Preview File</span>
                                 </button>
                             </div>
@@ -947,6 +939,276 @@
                     contentEmpty.classList.remove('hidden');
                 }
             }
+
+            /**
+             * Render folder/file contents in list view (table format)
+             */
+            function renderListView(folders, files, currentPath) {
+                const listViewBody = document.getElementById('listViewBody');
+
+                // Clear existing content
+                listViewBody.innerHTML = '';
+
+                // Render folders first
+                folders.forEach(folder => {
+                    const row = createListRow(folder, 'folder', currentPath);
+                    listViewBody.appendChild(row);
+                });
+
+                // Render files
+                files.forEach(file => {
+                    const row = createListRow(file, 'file', currentPath);
+                    listViewBody.appendChild(row);
+                });
+
+                // If empty
+                if (folders.length === 0 && files.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = `
+                        <td colspan="5" class="px-4 py-12 text-center">
+                            <i class="fas fa-folder-open text-gray-300 dark:text-gray-600 text-5xl mb-3 block"></i>
+                            <p class="text-gray-500 dark:text-gray-400">This folder is empty</p>
+                        </td>
+                    `;
+                    listViewBody.appendChild(emptyRow);
+                }
+
+                // Store current data for sorting
+                window.currentListData = {
+                    folders: folders,
+                    files: files,
+                    currentPath: currentPath,
+                    sortColumn: 'name',
+                    sortDirection: 'asc'
+                };
+            }
+
+            /**
+             * Create a list row for folder or file
+             */
+            function createListRow(item, type, currentPath) {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition';
+
+                // Add click handler
+                row.addEventListener('click', function() {
+                    if (type === 'folder') {
+                        loadFolderContents(item.path);
+                    } else {
+                        displaySelectedFile(item);
+                    }
+                });
+
+                // Checkbox cell
+                const checkboxCell = document.createElement('td');
+                checkboxCell.className = 'px-4 py-3';
+                checkboxCell.innerHTML = '<input type="checkbox" class="rounded border-gray-300 dark:border-gray-600" onclick="event.stopPropagation()">';
+                row.appendChild(checkboxCell);
+
+                // Name cell
+                const nameCell = document.createElement('td');
+                nameCell.className = 'px-4 py-3';
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'flex items-center';
+
+                const icon = document.createElement('i');
+                if (type === 'folder') {
+                    icon.className = 'fas fa-folder text-base text-yellow-500 dark:text-yellow-400 mr-3';
+                } else {
+                    icon.className = getFileIcon(item.name) + ' mr-3';
+                }
+                nameDiv.appendChild(icon);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'text-gray-900 dark:text-white text-sm' + (type === 'folder' ? ' font-medium' : '');
+                nameSpan.textContent = item.name;
+                nameDiv.appendChild(nameSpan);
+
+                nameCell.appendChild(nameDiv);
+                row.appendChild(nameCell);
+
+                // Size cell
+                const sizeCell = document.createElement('td');
+                sizeCell.className = 'px-4 py-3 text-gray-600 dark:text-gray-400 text-sm text-right';
+                sizeCell.textContent = type === 'folder' ? '-' : (item.size ? formatFileSize(item.size) : '-');
+                sizeCell.dataset.size = item.size || 0;
+                row.appendChild(sizeCell);
+
+                // Modified date cell
+                const modifiedCell = document.createElement('td');
+                modifiedCell.className = 'px-4 py-3 text-gray-600 dark:text-gray-400 text-sm';
+                modifiedCell.textContent = item.modified || '-';
+                modifiedCell.dataset.modified = item.modified || '';
+                row.appendChild(modifiedCell);
+
+                // Permissions cell (octal format)
+                const permCell = document.createElement('td');
+                permCell.className = 'px-4 py-3 text-gray-600 dark:text-gray-400 text-sm font-mono text-center';
+                const octalPerm = convertPermissionsToOctal(item.permissions);
+                permCell.textContent = octalPerm;
+                permCell.dataset.permissions = octalPerm;
+                row.appendChild(permCell);
+
+                return row;
+            }
+
+            /**
+             * Sort list view by column
+             */
+            function sortListView(column) {
+                if (!window.currentListData) return;
+
+                const data = window.currentListData;
+
+                // Toggle sort direction if clicking the same column
+                if (data.sortColumn === column) {
+                    data.sortDirection = data.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    data.sortColumn = column;
+                    data.sortDirection = 'asc';
+                }
+
+                // Combine folders and files for sorting
+                let allItems = [
+                    ...data.folders.map(f => ({...f, type: 'folder'})),
+                    ...data.files.map(f => ({...f, type: 'file'}))
+                ];
+
+                // Sort based on column
+                allItems.sort((a, b) => {
+                    let aVal, bVal;
+
+                    switch(column) {
+                        case 'name':
+                            aVal = a.name.toLowerCase();
+                            bVal = b.name.toLowerCase();
+                            break;
+                        case 'size':
+                            aVal = a.size || 0;
+                            bVal = b.size || 0;
+                            break;
+                        case 'modified':
+                            aVal = a.modified || '';
+                            bVal = b.modified || '';
+                            break;
+                        case 'permissions':
+                            aVal = convertPermissionsToOctal(a.permissions);
+                            bVal = convertPermissionsToOctal(b.permissions);
+                            break;
+                        default:
+                            return 0;
+                    }
+
+                    if (aVal < bVal) return data.sortDirection === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return data.sortDirection === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // Re-render the list
+                const listViewBody = document.getElementById('listViewBody');
+                listViewBody.innerHTML = '';
+
+                allItems.forEach(item => {
+                    const row = createListRow(item, item.type, data.currentPath);
+                    listViewBody.appendChild(row);
+                });
+
+                // Update sort icons
+                updateSortIcons(column, data.sortDirection);
+            }
+
+            /**
+             * Update sort icons in table headers
+             */
+            function updateSortIcons(activeColumn, direction) {
+                const headers = document.querySelectorAll('#listView th[onclick]');
+                headers.forEach(header => {
+                    const icon = header.querySelector('i');
+                    const columnName = header.getAttribute('onclick').match(/sortListView\('(\w+)'\)/)[1];
+
+                    if (columnName === activeColumn) {
+                        icon.className = direction === 'asc'
+                            ? 'fas fa-sort-up text-xs text-primary-500 dark:text-primary-400'
+                            : 'fas fa-sort-down text-xs text-primary-500 dark:text-primary-400';
+                    } else {
+                        icon.className = 'fas fa-sort text-xs opacity-50';
+                    }
+                });
+            }
+
+            /**
+             * Switch between grid and list view
+             */
+            function switchView(viewType) {
+                const listView = document.getElementById('listView');
+                const gridView = document.getElementById('gridView');
+                const contentEmpty = document.getElementById('contentEmpty');
+                const listBtn = document.getElementById('viewToggleList');
+                const gridBtn = document.getElementById('viewToggleGrid');
+
+                if (viewType === 'list') {
+                    // Check if list view has content
+                    const listBody = document.getElementById('listViewBody');
+                    if (listBody && listBody.children.length > 0) {
+                        // Show list view
+                        listView.classList.remove('hidden');
+                        gridView.classList.add('hidden');
+                        if (contentEmpty) contentEmpty.classList.add('hidden');
+                    }
+
+                    // Update button states
+                    listBtn.className = 'p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition';
+                    gridBtn.className = 'p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition';
+
+                    // Save preference
+                    localStorage.setItem('fileManagerView', 'list');
+                } else {
+                    // Check if grid view has content
+                    const eliteGrid = document.getElementById('eliteGrid');
+                    if (eliteGrid) {
+                        // Show grid view
+                        gridView.classList.remove('hidden');
+                        listView.classList.add('hidden');
+                        if (contentEmpty) contentEmpty.classList.add('hidden');
+                    }
+
+                    // Update button states
+                    gridBtn.className = 'p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition';
+                    listBtn.className = 'p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition';
+
+                    // Save preference
+                    localStorage.setItem('fileManagerView', 'grid');
+                }
+            }
+
+            /**
+             * Initialize view from localStorage
+             */
+            function initializeView() {
+                const savedView = localStorage.getItem('fileManagerView') || 'list';
+                switchView(savedView);
+            }
+
+            /**
+             * Setup view toggle buttons
+             */
+            const listToggleBtn = document.getElementById('viewToggleList');
+            const gridToggleBtn = document.getElementById('viewToggleGrid');
+
+            if (listToggleBtn) {
+                listToggleBtn.addEventListener('click', function() {
+                    switchView('list');
+                });
+            }
+
+            if (gridToggleBtn) {
+                gridToggleBtn.addEventListener('click', function() {
+                    switchView('grid');
+                });
+            }
+
+            // Initialize view on page load
+            initializeView();
 
             /**
              * Escape HTML to prevent XSS
