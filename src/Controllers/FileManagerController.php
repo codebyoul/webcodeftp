@@ -453,7 +453,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token', '');
-        $csrf = new \WebFTP\Core\CsrfToken($this->session);
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             $this->response->json(['success' => false, 'message' => 'Invalid CSRF token'], 403);
@@ -461,7 +461,18 @@ class FileManagerController
 
         // Get file path and content from request
         $path = $this->request->post('path', '');
-        $content = $this->request->post('content', '');
+
+        // Get content directly from POST without sanitization (we need raw content for files)
+        $content = $_POST['content'] ?? '';
+
+        // Still validate length for security
+        $maxSize = $this->config['file_editor']['max_file_size'] ?? 10485760; // 10MB default
+        if (strlen($content) > $maxSize) {
+            $this->response->json([
+                'success' => false,
+                'message' => 'Content too large. Maximum: ' . round($maxSize / 1024 / 1024) . ' MB'
+            ]);
+        }
 
         if (empty($path)) {
             $this->response->json(['success' => false, 'message' => 'File path required']);
@@ -505,16 +516,6 @@ class FileManagerController
                 $this->response->json(['success' => false, 'message' => 'Invalid path']);
             }
 
-            // Check file size limit
-            $contentSize = strlen($content);
-            $maxSize = $this->config['file_editor']['max_file_size'];
-            if ($contentSize > $maxSize) {
-                $ftp->disconnect();
-                $this->response->json([
-                    'success' => false,
-                    'message' => 'Content too large (' . round($contentSize / 1024 / 1024, 2) . ' MB). Maximum: ' . round($maxSize / 1024 / 1024) . ' MB'
-                ]);
-            }
 
             // Check if file extension is editable
             $extension = strtolower(pathinfo($sanitizedPath, PATHINFO_EXTENSION));
@@ -532,10 +533,10 @@ class FileManagerController
 
             $tempPath = stream_get_meta_data($tempFile)['uri'];
 
-            // Write content to temp file
+            // Write content to temp file exactly as received
             file_put_contents($tempPath, $content);
 
-            // Upload temp file to FTP
+            // Upload temp file to FTP in binary mode (no transformation)
             $uploadResult = @ftp_put($ftp->getConnection(), $sanitizedPath, $tempPath, FTP_BINARY);
 
             fclose($tempFile);

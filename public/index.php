@@ -155,8 +155,20 @@ $router->get('/api/file/read', function () use ($config, $request, $response, $s
 });
 
 $router->post('/api/file/write', function () use ($config, $request, $response, $session) {
-    $controller = new FileManagerController($config, $request, $response, $session);
-    $controller->writeFile();
+    try {
+        $controller = new FileManagerController($config, $request, $response, $session);
+        $controller->writeFile();
+    } catch (\Throwable $e) {
+        Logger::error('API file/write error', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        $response->json([
+            'success' => false,
+            'message' => 'Internal error: ' . $e->getMessage()
+        ]);
+    }
 });
 
 // Dispatch request

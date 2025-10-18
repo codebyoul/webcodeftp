@@ -21,7 +21,9 @@ class Response
     {
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=UTF-8');
-        echo json_encode($data, JSON_THROW_ON_ERROR);
+        // JSON_UNESCAPED_SLASHES: Don't escape forward slashes
+        // JSON_UNESCAPED_UNICODE: Don't escape unicode characters
+        echo json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         exit;
     }
 

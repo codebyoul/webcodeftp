@@ -144,7 +144,7 @@ return [
         'level' => 'info', // 'debug', 'info', 'warning', 'error'
         'log_path' => __DIR__ . '/../logs/app.log',
         'log_auth_attempts' => true, // Log all authentication attempts
-        'log_ftp_operations' => true, // Log FTP operations (may be verbose)
+        'log_ftp_operations' => false, // Log FTP operations (may be verbose)
     ],
 
     'error' => [
