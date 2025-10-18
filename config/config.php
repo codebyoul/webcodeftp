@@ -26,7 +26,7 @@ return [
         'charset' => 'UTF-8',
         // Asset version for cache busting (increment when JS/CSS files change)
         // Format: major.minor.patch (e.g., 1.0.0, 1.0.1, 1.1.0, 2.0.0)
-        'asset_version' => '1.2.14',
+        'asset_version' => '1.7.0',
     ],
 
     // ============================================================================
@@ -141,7 +141,7 @@ return [
 
     'logging' => [
         'enabled' => true,
-        'level' => 'info', // 'debug', 'info', 'warning', 'error'
+        'level' => 'error', // 'debug', 'info', 'warning', 'error'
         'log_path' => __DIR__ . '/../logs/app.log',
         'log_auth_attempts' => true, // Log all authentication attempts
         'log_ftp_operations' => false, // Log FTP operations (may be verbose)

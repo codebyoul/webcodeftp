@@ -5,11 +5,10 @@
  * Preview/Edit file using integrated editor
  */
 function previewFile(path) {
-  // Use integrated editor
+  // Use integrated editor (it will update the URL)
   if (typeof openIntegratedEditor === 'function') {
-    openIntegratedEditor(path);
+    openIntegratedEditor(path, true);
   } else {
-    console.error('Integrated editor not loaded');
   }
 }
 
@@ -126,7 +125,6 @@ function refreshCurrentFolder() {
   } else {
     // If function not available yet, remove spin immediately
     icon.classList.remove("fa-spin");
-    console.error("loadFolderContents function not available");
   }
 }
 
@@ -251,13 +249,13 @@ document.addEventListener("DOMContentLoaded", function () {
   /**
    * Load folder tree from API
    */
-  function loadFolderTree(path = "/") {
+  function loadFolderTree(path = "/", callback = null) {
     // Show loading
     treeLoading.classList.remove("hidden");
     folderTree.classList.add("hidden");
     treeError.classList.add("hidden");
 
-    fetch("/api/folder-tree?path=" + encodeURIComponent(path))
+    return fetch("/api/folder-tree?path=" + encodeURIComponent(path))
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
@@ -270,12 +268,17 @@ document.addEventListener("DOMContentLoaded", function () {
             // Initial load - render root
             renderTree(data.tree);
           }
+
+
+          // Call callback if provided (used for highlighting after tree loads)
+          if (callback) {
+            setTimeout(callback, 100); // Small delay to ensure DOM is ready
+          }
         } else {
           throw new Error(data.message || "Failed to load tree");
         }
       })
       .catch((error) => {
-        console.error("Error loading folder tree:", error);
         treeLoading.classList.add("hidden");
         treeError.classList.remove("hidden");
       });
@@ -310,7 +313,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Arrow icon for folders
       const arrow = document.createElement("i");
       arrow.className =
-        "fas fa-chevron-right text-xs text-gray-400 dark:text-gray-500 mr-2 transition-transform";
+        "folder-arrow fas fa-chevron-right text-xs text-gray-400 dark:text-gray-500 mr-2 transition-transform";
       button.appendChild(arrow);
 
       // Folder icon
@@ -334,10 +337,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Click handler for folders
       button.addEventListener("click", function (e) {
-        // Load folder contents in main area
+
+        // Load folder contents in main area (updates URL, highlights folder, and loads content)
         loadFolderContents(item.path);
 
-        // Toggle folder expand/collapse
+        // Toggle folder expand/collapse in sidebar (independent of highlighting)
         toggleFolder(item.path, arrow, childrenContainer, level);
 
         e.stopPropagation();
@@ -417,18 +421,19 @@ document.addEventListener("DOMContentLoaded", function () {
       arrow.classList.add("rotate-90");
       childrenContainer.classList.remove("hidden");
       expandedFolders.add(path);
-
-      // Load children if not loaded yet
-      if (childrenContainer.children.length === 0) {
-        loadFolderChildren(path, childrenContainer, level + 1);
-      }
     }
+
+    // Always reload children to match main list view (both expand and collapse)
+    // This ensures tree always shows fresh data from FTP server
+    childrenContainer.innerHTML = ''; // Clear old data
+    loadFolderChildren(path, childrenContainer, level + 1);
+
   }
 
   /**
    * Load children for a folder
    */
-  function loadFolderChildren(path, container, level) {
+  function loadFolderChildren(path, container, level, onComplete = null) {
     // Show loading indicator
     const loading = document.createElement("div");
     loading.className =
@@ -455,9 +460,13 @@ document.addEventListener("DOMContentLoaded", function () {
           empty.textContent = "Empty";
           container.appendChild(empty);
         }
+
+        // Call callback when children are loaded and rendered
+        if (onComplete) {
+          onComplete();
+        }
       })
       .catch((error) => {
-        console.error("Error loading folder children:", error);
         container.innerHTML = "";
         const errorMsg = document.createElement("div");
         errorMsg.className = "px-3 py-2 text-sm text-red-500";
@@ -472,8 +481,10 @@ document.addEventListener("DOMContentLoaded", function () {
     loadFolderTree();
   });
 
-  // Initial load
-  loadFolderTree();
+  // Initial load - load tree first, then initialize from URL
+  loadFolderTree("/", function() {
+    initializeFromUrl();
+  });
 
   // View Toggle (List/Grid)
   const viewToggleList = document.getElementById("viewToggleList");
@@ -563,9 +574,17 @@ document.addEventListener("DOMContentLoaded", function () {
   /**
    * Load folder contents in main content area
    */
-  function loadFolderContents(path) {
+  function loadFolderContents(path, updateUrl = true, onComplete = null) {
+
     // Clear any file selection when loading new folder
     clearSelection();
+
+    // Update URL with current path (for shareable links)
+    if (updateUrl) {
+      const url = new URL(window.location);
+      url.searchParams.set('path', path);
+      window.history.pushState({ path: path }, '', url);
+    }
 
     // Get container elements
     const contentEmpty = document.getElementById("contentEmpty");
@@ -585,8 +604,15 @@ document.addEventListener("DOMContentLoaded", function () {
       pathInput.value = path;
     }
 
+    // Only highlight if we're updating the URL (user-initiated navigation)
+    // Skip highlighting on initial load to avoid duplicate calls
+    // Pass expandParents = false because folder clicks handle their own expansion via toggleFolder
+    if (updateUrl) {
+      highlightCurrentPath(path, false);
+    }
+
     // Fetch folder contents
-    fetch("/api/folder-contents?path=" + encodeURIComponent(path))
+    return fetch("/api/folder-contents?path=" + encodeURIComponent(path))
       .then((response) => response.json())
       .then((data) => {
         // Hide loading
@@ -606,19 +632,28 @@ document.addEventListener("DOMContentLoaded", function () {
             gridView.classList.remove("hidden");
             listView.classList.add("hidden");
           }
+
+          // Call the callback when content is loaded
+          if (onComplete) {
+            onComplete(data);
+          }
         } else {
-          // Show error
-          if (contentEmpty) {
-            contentEmpty.classList.remove("hidden");
-            contentEmpty.innerHTML =
-              '<div class="text-center px-6"><i class="fas fa-exclamation-triangle text-red-500 text-6xl mb-4"></i><h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Error Loading Folder</h3><p class="text-gray-500 dark:text-gray-400">' +
-              (data.message || "Unable to load folder contents") +
-              "</p></div>";
+          // Folder load failed - call callback so caller can handle error
+          if (onComplete) {
+            onComplete(data);
+          } else {
+            // Only show generic error if no callback provided (backwards compatibility)
+            if (contentEmpty) {
+              contentEmpty.classList.remove("hidden");
+              contentEmpty.innerHTML =
+                '<div class="text-center px-6"><i class="fas fa-exclamation-triangle text-red-500 text-6xl mb-4"></i><h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Error Loading Folder</h3><p class="text-gray-500 dark:text-gray-400">' +
+                (data.message || "Unable to load folder contents") +
+                "</p></div>";
+            }
           }
         }
       })
       .catch((error) => {
-        console.error("Error loading folder contents:", error);
         if (contentLoading) contentLoading.classList.add("hidden");
         if (contentEmpty) {
           contentEmpty.classList.remove("hidden");
@@ -789,6 +824,15 @@ document.addEventListener("DOMContentLoaded", function () {
    * Display selected file in main content area
    */
   function displaySelectedFile(file) {
+    // Update URL with file path (without action=edit)
+    const url = new URL(window.location);
+    url.searchParams.set('path', file.path);
+    url.searchParams.delete('action'); // Remove action parameter
+    window.history.pushState({ path: file.path }, '', url);
+
+    // Highlight file in sidebar
+    highlightCurrentPath(file.path);
+
     // Get container elements
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
@@ -885,6 +929,125 @@ document.addEventListener("DOMContentLoaded", function () {
     // Show the file display
     if (contentEmpty) {
       contentEmpty.innerHTML = fileDisplay;
+      contentEmpty.classList.remove("hidden");
+    }
+  }
+
+  /**
+   * Display file not found error (red styled, same position as file preview)
+   */
+  function displayFileNotFound(path) {
+
+    // Clear previous content and show empty state
+    const contentEmpty = document.getElementById("contentEmpty");
+    const contentLoading = document.getElementById("contentLoading");
+    const listView = document.getElementById("listView");
+    const gridView = document.getElementById("gridView");
+
+    if (contentLoading) contentLoading.classList.add("hidden");
+    listView.classList.add("hidden");
+    gridView.classList.add("hidden");
+
+    // Get filename and extension
+    const fileName = path.substring(path.lastIndexOf('/') + 1);
+    const extension = fileName.split('.').pop().toLowerCase();
+
+    // Get file icon (but make it red)
+    const iconClasses = getFileIcon(fileName)
+      .replace(/text-\w+-\d+/g, 'text-red-500')
+      .replace(/dark:text-\w+-\d+/g, 'dark:text-red-400')
+      .trim();
+
+    // Create error display (same layout as normal file, but red)
+    const errorDisplay = `
+      <div class="flex items-center justify-center h-full">
+        <div class="text-center px-8 max-w-2xl">
+          <!-- Red File Icon -->
+          <div class="relative inline-block mb-6">
+            <div class="absolute inset-0 bg-red-500 rounded-2xl blur-xl opacity-20 animate-pulse"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-xl border-2 border-red-300 dark:border-red-700">
+              <i class="${iconClasses} text-7xl"></i>
+            </div>
+          </div>
+
+          <!-- File Name in Red -->
+          <h2 class="text-2xl font-bold text-red-600 dark:text-red-400 mb-3 break-all">${escapeHtml(fileName)}</h2>
+
+          <!-- Error Message -->
+          <div class="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 mb-6">
+            <i class="fas fa-exclamation-triangle text-lg"></i>
+            <span class="text-lg font-semibold">File not found</span>
+          </div>
+
+          <!-- File Path -->
+          <div class="mt-8 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <p class="text-xs text-red-600 dark:text-red-400 font-mono break-all">
+              <i class="fas fa-folder-tree mr-2"></i>${escapeHtml(path)}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Show the error display
+    if (contentEmpty) {
+      contentEmpty.innerHTML = errorDisplay;
+      contentEmpty.classList.remove("hidden");
+    }
+  }
+
+  /**
+   * Display path not found error (for completely invalid paths)
+   */
+  function displayPathNotFound(path) {
+
+    // Clear previous content and show empty state
+    const contentEmpty = document.getElementById("contentEmpty");
+    const contentLoading = document.getElementById("contentLoading");
+    const listView = document.getElementById("listView");
+    const gridView = document.getElementById("gridView");
+
+    if (contentLoading) contentLoading.classList.add("hidden");
+    listView.classList.add("hidden");
+    gridView.classList.add("hidden");
+
+    // Determine if it's a file or folder based on extension
+    const isFile = path.includes('.') && !path.endsWith('/');
+    const iconClass = isFile
+      ? 'fas fa-file text-red-500 dark:text-red-400'
+      : 'fas fa-folder text-red-500 dark:text-red-400';
+
+    // Create error display
+    const errorDisplay = `
+      <div class="flex items-center justify-center h-full">
+        <div class="text-center px-8 max-w-2xl">
+          <!-- Red Icon (file or folder) -->
+          <div class="relative inline-block mb-6">
+            <div class="absolute inset-0 bg-red-500 rounded-2xl blur-xl opacity-20 animate-pulse"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-xl border-2 border-red-300 dark:border-red-700">
+              <i class="${iconClass} text-7xl"></i>
+            </div>
+          </div>
+
+          <!-- Error Message -->
+          <div class="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 mb-6">
+            <i class="fas fa-exclamation-triangle text-xl"></i>
+            <span class="text-xl font-semibold">Path not found</span>
+          </div>
+
+          <!-- Path -->
+          <div class="mt-8 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <p class="text-sm text-red-600 dark:text-red-400 font-mono break-all">
+              <i class="fas fa-folder-tree mr-2"></i>${escapeHtml(path)}
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Show the error display
+    if (contentEmpty) {
+      contentEmpty.innerHTML = errorDisplay;
       contentEmpty.classList.remove("hidden");
     }
   }
@@ -1147,6 +1310,237 @@ document.addEventListener("DOMContentLoaded", function () {
     const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Highlight current path in sidebar tree
+   */
+  function highlightCurrentPath(path, expandParents = true) {
+
+    // If we need to expand parents, do it FIRST, then highlight
+    if (expandParents) {
+      expandParentFolders(path, () => {
+        // After expanding, highlight with expandParents=false to avoid infinite loop
+        highlightCurrentPath(path, false);
+      });
+      return; // Exit early, let the callback handle highlighting
+    }
+
+    // Remove previous highlights
+    document.querySelectorAll('.sidebar-tree-item-active').forEach(el => {
+      el.classList.remove('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+    });
+
+    // Find and highlight the current path
+    const sidebarItems = document.querySelectorAll('[data-path]');
+
+    let found = false;
+    sidebarItems.forEach(item => {
+      const itemPath = item.getAttribute('data-path');
+
+      if (itemPath === path) {
+        found = true;
+
+        // Add highlight to the button inside the item, not the container
+        const button = item.querySelector('button');
+        if (button) {
+          button.classList.add('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+        } else {
+          // For files - highlight the whole div
+          item.classList.add('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+        }
+
+        // Scroll into view
+        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+
+    if (!found) {
+    }
+  }
+
+  /**
+   * Expand parent folders to make a path visible (one by one, sequentially)
+   */
+  async function expandParentFolders(path, onComplete = null) {
+    const parts = path.split('/').filter(p => p);
+
+    // Check if the target is a file (has extension)
+    const isTargetFile = path.includes('.') && !path.endsWith('/');
+
+    // If target is a file, only process parent folders (exclude the last part which is the filename)
+    const partsToProcess = isTargetFile ? parts.slice(0, -1) : parts;
+
+    // Expand folders one by one, SEQUENTIALLY
+    let currentPath = '';
+    for (let i = 0; i < partsToProcess.length; i++) {
+      currentPath += '/' + partsToProcess[i];
+
+      const folderElement = document.querySelector(`[data-path="${currentPath}"]`);
+
+      if (folderElement && folderElement.dataset.type === 'directory') {
+
+        const button = folderElement.querySelector('button');
+        if (!button) {
+          continue;
+        }
+
+        const arrow = button.querySelector('.folder-arrow');
+        const childrenContainer = folderElement.querySelector('[data-children-for]');
+
+        if (arrow && childrenContainer) {
+          const isHidden = childrenContainer.classList.contains('hidden');
+
+          if (isHidden) {
+            arrow.classList.add('rotate-90');
+            childrenContainer.classList.remove('hidden');
+            expandedFolders.add(currentPath);
+
+            // Load children if empty - WAIT for this to complete before continuing
+            if (childrenContainer.children.length === 0) {
+              await new Promise((resolve) => {
+                loadFolderChildren(currentPath, childrenContainer, i + 1, resolve);
+              });
+            }
+          } else {
+          }
+        }
+      } else {
+      }
+    }
+
+    if (onComplete) {
+      onComplete();
+    }
+  }
+
+  /**
+   * Handle browser back/forward buttons
+   */
+  window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.path) {
+      if (event.state.action === 'edit') {
+        // Reopen file in editor (don't update URL - we're navigating via browser buttons)
+        if (typeof openIntegratedEditor === 'function') {
+          openIntegratedEditor(event.state.path, false);
+        }
+      } else {
+        // Check if it's a file or folder
+        const isFile = event.state.path.includes('.') && !event.state.path.endsWith('/');
+
+        if (isFile) {
+          // Show file info
+          const fileName = event.state.path.substring(event.state.path.lastIndexOf('/') + 1);
+          const file = { name: fileName, path: event.state.path, type: 'file' };
+          const folderPath = event.state.path.substring(0, event.state.path.lastIndexOf('/')) || '/';
+          loadFolderContents(folderPath, false);
+          setTimeout(() => {
+            const urlBackup = window.location.href;
+            displaySelectedFile(file);
+            window.history.replaceState({ path: event.state.path }, '', urlBackup);
+          }, 500);
+        } else {
+          // Reload folder without updating URL
+          loadFolderContents(event.state.path, false);
+        }
+      }
+    }
+  });
+
+  /**
+   * Initialize from URL on page load
+   */
+  function initializeFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const path = urlParams.get('path');
+    const action = urlParams.get('action');
+
+
+    if (path) {
+      // Determine if path is a file or folder (check for extension)
+      const isFile = path.includes('.') && !path.endsWith('/');
+
+      if (isFile) {
+        // It's a FILE - load parent folder WITHOUT updating URL
+        const folderPath = path.substring(0, path.lastIndexOf('/')) || '/';
+
+        // Load parent folder but DON'T update URL (file path stays in URL)
+        loadFolderContents(folderPath, false, (data) => {
+          if (!data || !data.success) {
+            // Parent folder doesn't exist - expand tree as far as possible and show error
+            highlightCurrentPath(path); // This will expand as far as it can
+            displayPathNotFound(path);
+            return;
+          }
+
+          // Parent folder exists - check if file exists
+          const allFiles = data.files || [];
+          const fileData = allFiles.find(f => f.path === path);
+
+          if (fileData) {
+            // File EXISTS! Show it normally
+            highlightCurrentPath(path);
+
+            if (action === 'edit') {
+              if (typeof openIntegratedEditor === 'function') {
+                openIntegratedEditor(path, false);
+              }
+            } else {
+              displaySelectedFile(fileData);
+            }
+          } else {
+            // File NOT found - but still expand the tree to show the path
+            highlightCurrentPath(path); // Expand all parent folders
+            displayFileNotFound(path);
+          }
+        });
+      } else {
+        // It's a FOLDER - just load it (let sidebar handle opening parent folders)
+
+        loadFolderContents(path, true, (data) => {
+
+          if (data && data.success) {
+            // Folder exists
+          } else {
+            // Folder doesn't exist - expand tree as far as possible and show error
+            highlightCurrentPath(path); // This will expand as far as it can
+            displayPathNotFound(path);
+          }
+        });
+      }
+    }
+  }
+
+  // Note: initializeFromUrl is now called after tree loads (see line 487)
+
+  /**
+   * Path input navigation - when user types a path and presses Enter
+   * Simply update the URL - the URL is the single source of truth!
+   */
+  const pathInput = document.getElementById("pathInput");
+  if (pathInput) {
+    pathInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const inputPath = pathInput.value.trim();
+
+        if (!inputPath) {
+          alert("Please enter a path");
+          return;
+        }
+
+        // Normalize path (ensure it starts with /)
+        const normalizedPath = inputPath.startsWith('/') ? inputPath : '/' + inputPath;
+
+        // Update URL - this is the single source of truth!
+        const url = new URL(window.location);
+        url.searchParams.set('path', normalizedPath);
+        window.history.pushState({ path: normalizedPath }, '', url);
+
+        // Re-initialize from URL - this handles everything (folders, files, tree expansion, etc.)
+        initializeFromUrl();
+      }
+    });
   }
 
   /**

@@ -300,6 +300,25 @@ class FileManagerController
             // Disconnect
             $ftp->disconnect();
 
+            // Check if the folder exists (success flag from FTP model)
+            if (!isset($contents['success']) || !$contents['success']) {
+                Logger::debug("getFolderContents: Folder does not exist", [
+                    'path' => $sanitizedPath,
+                    'contents' => $contents
+                ]);
+                $this->response->json([
+                    'success' => false,
+                    'message' => 'Folder not found',
+                    'path' => $sanitizedPath
+                ]);
+            }
+
+            Logger::debug("getFolderContents: Success", [
+                'path' => $sanitizedPath,
+                'folders' => count($contents['folders']),
+                'files' => count($contents['files'])
+            ]);
+
             $this->response->json([
                 'success' => true,
                 'path' => $sanitizedPath,

@@ -386,22 +386,36 @@ class FtpConnection
     {
         if (!$this->isConnected()) {
             Logger::ftp("getDirectoryContents", ['reason' => 'Not connected'], false);
-            return ['folders' => [], 'files' => []];
+            return ['success' => false, 'folders' => [], 'files' => []];
         }
 
         Logger::ftp("getDirectoryContents", ['directory' => $directory]);
 
         // Save current directory
         $currentDir = @ftp_pwd($this->connection);
+        Logger::debug("getDirectoryContents: Current FTP directory", ['currentDir' => $currentDir]);
 
         // Change to the target directory first
-        if (!@ftp_chdir($this->connection, $directory)) {
-            Logger::ftp("getDirectoryContents", ['directory' => $directory]);
-            return ['folders' => [], 'files' => []];
+        $chdirResult = @ftp_chdir($this->connection, $directory);
+        Logger::debug("getDirectoryContents: ftp_chdir result", [
+            'directory' => $directory,
+            'success' => $chdirResult,
+            'currentDir' => $currentDir
+        ]);
+
+        if (!$chdirResult) {
+            Logger::ftp("getDirectoryContents: Directory does not exist", ['directory' => $directory], false);
+            Logger::debug("getDirectoryContents: FOLDER NOT FOUND", ['directory' => $directory]);
+            return ['success' => false, 'folders' => [], 'files' => []];
         }
 
         // Use ftp_rawlist to get detailed directory listing
         $rawList = @ftp_rawlist($this->connection, ".");
+        Logger::debug("getDirectoryContents: ftp_rawlist result", [
+            'directory' => $directory,
+            'rawList' => $rawList,
+            'count' => $rawList ? count($rawList) : 0
+        ]);
 
         // Change back to original directory
         if ($currentDir) {
@@ -409,8 +423,9 @@ class FtpConnection
         }
 
         if ($rawList === false || empty($rawList)) {
-            Logger::ftp("getDirectoryContents", ['directory' => $directory]);
-            return ['folders' => [], 'files' => []];
+            Logger::ftp("getDirectoryContents: Empty directory or read failed", ['directory' => $directory]);
+            Logger::debug("getDirectoryContents: Empty folder", ['directory' => $directory]);
+            return ['success' => true, 'folders' => [], 'files' => []];
         }
 
         Logger::ftp("getDirectoryContents", ['directory' => $directory, 'count' => count($rawList)]);
@@ -484,6 +499,7 @@ class FtpConnection
         ]);
 
         return [
+            'success' => true,
             'folders' => $folders,
             'files' => $files
         ];

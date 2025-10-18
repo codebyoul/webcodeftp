@@ -7,9 +7,17 @@ let originalContent = null;
 /**
  * Open file in integrated editor (replaces content area)
  */
-function openIntegratedEditor(path) {
+function openIntegratedEditor(path, updateUrl = true) {
   // Store current file
   currentEditingFile = path;
+
+  // Update URL if needed (previewFile already does this, but direct calls might not)
+  if (updateUrl) {
+    const url = new URL(window.location);
+    url.searchParams.set('path', path);
+    url.searchParams.set('action', 'edit');
+    window.history.pushState({ path: path, action: 'edit' }, '', url);
+  }
 
   // Hide all content views
   document.getElementById("contentEmpty").classList.add("hidden");
@@ -62,8 +70,8 @@ function openIntegratedEditor(path) {
             window.codeMirrorEditor.setOriginalContent(data.content);
             window.codeMirrorEditor.setCurrentFilePath(path);
             window.codeMirrorEditor.setModified(false);
-            // Update all editor button states after loading file
-            setTimeout(updateEditorButtons, 100);
+            // Update all editor button states (instant, no delay needed)
+            updateEditorButtons();
           }
         } else {
           // Show message for non-editable files
@@ -198,6 +206,14 @@ function closeEditor() {
       return;
     }
   }
+
+  // Clear URL parameters when closing editor
+  const url = new URL(window.location);
+  url.searchParams.delete('action');
+  // Keep the path parameter pointing to the folder
+  const currentPath = currentEditingFile ? currentEditingFile.substring(0, currentEditingFile.lastIndexOf('/')) || '/' : '/';
+  url.searchParams.set('path', currentPath);
+  window.history.pushState({ path: currentPath }, '', url);
 
   // Hide editor
   document.getElementById("editorView").classList.add("hidden");
