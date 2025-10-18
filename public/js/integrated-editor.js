@@ -66,17 +66,12 @@ function openIntegratedEditor(path) {
                     window.codeMirrorEditor.setOriginalContent(data.content);
                     window.codeMirrorEditor.setCurrentFilePath(path);
                     window.codeMirrorEditor.setModified(false);
-                    // Update undo/redo button states after loading file
-                    setTimeout(updateUndoRedoButtons, 100);
+                    // Update all editor button states after loading file
+                    setTimeout(updateEditorButtons, 100);
                 }
-
-                // Enable save buttons
-                document.getElementById('editorSaveBtn').disabled = false;
-                document.getElementById('editorToolbarSaveBtn').disabled = false;
             } else {
                 // Show message for non-editable files
                 document.getElementById('editorContainer').innerHTML = '<div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">This file type cannot be edited</div>';
-                document.getElementById('editorSaveBtn').disabled = true;
                 document.getElementById('editorToolbarSaveBtn').disabled = true;
             }
         } else {
@@ -97,30 +92,33 @@ function openIntegratedEditor(path) {
 function saveFile() {
     if (!window.codeMirrorEditor || !currentEditingFile) return;
 
+    // Check if file is modified
+    if (!window.codeMirrorEditor.isModified()) {
+        return; // Nothing to save
+    }
+
     const content = window.codeMirrorEditor.getContent();
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
     // Show saving state
-    const saveBtn = document.getElementById('editorSaveBtn');
-    const topSaveBtn = document.getElementById('editorToolbarSaveBtn');
-    const originalHtml = saveBtn.innerHTML;
-    const topOriginalHtml = topSaveBtn.innerHTML;
+    const saveBtn = document.getElementById('editorToolbarSaveBtn');
+    const originalIcon = '<i class="fas fa-save"></i>';
 
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     saveBtn.disabled = true;
-    topSaveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Saving...</span>';
-    topSaveBtn.disabled = true;
+
+    // Create URL-encoded form data
+    const params = new URLSearchParams();
+    params.append('path', currentEditingFile);
+    params.append('content', content);
+    params.append('_csrf_token', csrfToken);
 
     fetch('/api/file/write', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-            path: currentEditingFile,
-            content: content,
-            _csrf_token: csrfToken
-        })
+        body: params.toString()
     })
     .then(response => response.json())
     .then(data => {
@@ -130,34 +128,25 @@ function saveFile() {
             window.codeMirrorEditor.setOriginalContent(content);
             window.codeMirrorEditor.setModified(false);
 
-            // Hide modified badges
-            document.getElementById('editorModifiedBadge').classList.add('hidden');
-            document.getElementById('editorToolbarModifiedBadge').classList.add('hidden');
+            // Hide modified status
+            document.getElementById('editorModifiedStatus')?.classList.add('hidden');
 
-            // Show success
-            saveBtn.innerHTML = '<i class="fas fa-check"></i> <span>Saved</span>';
-            topSaveBtn.innerHTML = '<i class="fas fa-check"></i> <span>Saved</span>';
+            // Show success icon briefly
+            saveBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
             setTimeout(() => {
-                saveBtn.innerHTML = originalHtml;
-                saveBtn.disabled = false;
-                topSaveBtn.innerHTML = topOriginalHtml;
-                topSaveBtn.disabled = false;
+                saveBtn.innerHTML = originalIcon;
+                updateSaveButton(); // Update button state
             }, 2000);
         } else {
             alert('Failed to save: ' + (data.message || 'Unknown error'));
-            saveBtn.innerHTML = originalHtml;
+            saveBtn.innerHTML = originalIcon;
             saveBtn.disabled = false;
-            topSaveBtn.innerHTML = topOriginalHtml;
-            topSaveBtn.disabled = false;
         }
     })
     .catch(error => {
-        console.error('Error saving file:', error);
-        alert('Failed to save file');
-        saveBtn.innerHTML = originalHtml;
+        alert('Failed to save file: ' + error.message);
+        saveBtn.innerHTML = originalIcon;
         saveBtn.disabled = false;
-        topSaveBtn.innerHTML = topOriginalHtml;
-        topSaveBtn.disabled = false;
     });
 }
 
@@ -272,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function editorUndo() {
     if (window.codeMirrorEditor && window.codeMirrorEditor.undo) {
         window.codeMirrorEditor.undo();
-        updateUndoRedoButtons();
+        updateEditorButtons();
     }
 }
 
@@ -282,7 +271,7 @@ function editorUndo() {
 function editorRedo() {
     if (window.codeMirrorEditor && window.codeMirrorEditor.redo) {
         window.codeMirrorEditor.redo();
-        updateUndoRedoButtons();
+        updateEditorButtons();
     }
 }
 
@@ -319,6 +308,34 @@ function updateUndoRedoButtons() {
         redoBtn.classList.add('opacity-50', 'cursor-not-allowed');
         redoBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
     }
+}
+
+/**
+ * Update save button state based on file modification status
+ */
+function updateSaveButton() {
+    const saveBtn = document.getElementById('editorToolbarSaveBtn');
+    if (!saveBtn || !window.codeMirrorEditor) return;
+
+    const isModified = window.codeMirrorEditor.isModified();
+
+    if (isModified) {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        saveBtn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    } else {
+        saveBtn.disabled = true;
+        saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        saveBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    }
+}
+
+/**
+ * Update all editor button states
+ */
+function updateEditorButtons() {
+    updateUndoRedoButtons();
+    updateSaveButton();
 }
 
 /**

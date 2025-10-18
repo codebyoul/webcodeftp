@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WebFTP\Core;
 
+use WebFTP\Core\Logger;
+
 /**
  * Language Helper
  *
@@ -48,13 +50,32 @@ class Language
     {
         $languageFile = __DIR__ . '/../Languages/' . $language . '.php';
 
+        Logger::debug('Language loading', [
+            'language' => $language,
+            'file_path' => $languageFile,
+            'file_exists' => file_exists($languageFile)
+        ]);
+
         if (file_exists($languageFile)) {
             $this->translations = require $languageFile;
+            Logger::debug('Translations loaded', [
+                'language' => $language,
+                'count' => count($this->translations)
+            ]);
         } else {
             // Fallback to English
             $fallbackFile = __DIR__ . '/../Languages/' . $this->fallbackLanguage . '.php';
+            Logger::debug('Language fallback', [
+                'fallback_language' => $this->fallbackLanguage,
+                'fallback_file' => $fallbackFile,
+                'fallback_exists' => file_exists($fallbackFile)
+            ]);
             if (file_exists($fallbackFile)) {
                 $this->translations = require $fallbackFile;
+                Logger::debug('Fallback translations loaded', [
+                    'language' => $this->fallbackLanguage,
+                    'count' => count($this->translations)
+                ]);
             }
         }
     }

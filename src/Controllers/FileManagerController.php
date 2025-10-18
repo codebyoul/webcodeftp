@@ -6,6 +6,7 @@ namespace WebFTP\Controllers;
 
 use WebFTP\Core\Request;
 use WebFTP\Core\Response;
+use WebFTP\Core\Logger;
 use WebFTP\Models\Session;
 
 /**
@@ -34,8 +35,31 @@ class FileManagerController
 
         // Get user preferences from session or use defaults from config
         $theme = $this->session->get('theme', 'dark');
+
+        // Check for language in cookie first, then session, then use default
+        $cookieName = $this->config['localization']['language_cookie_name'] ?? 'webftp_language';
         $defaultLanguage = $this->config['localization']['default_language'];
-        $language = $this->session->get('language', $defaultLanguage);
+        $language = $_COOKIE[$cookieName] ?? $this->session->get('language', $defaultLanguage);
+
+        // Debug language detection
+        Logger::debug('Language detection', [
+            'cookie_name' => $cookieName,
+            'cookie_value' => $_COOKIE[$cookieName] ?? 'not set',
+            'session_language' => $this->session->get('language', 'not set'),
+            'selected_language' => $language
+        ]);
+
+        // Load translations
+        $lang = new \WebFTP\Core\Language($language, $this->config);
+        $translations = $lang->all();
+
+        // Debug translations
+        Logger::debug('Translations loaded', [
+            'language' => $language,
+            'total_keys' => count($translations),
+            'has_select_folder' => isset($translations['select_folder']),
+            'select_folder_value' => $translations['select_folder'] ?? 'NOT FOUND'
+        ]);
 
         // Get FTP connection details from session
         $ftpHost = $this->session->get('ftp_host');
@@ -53,6 +77,7 @@ class FileManagerController
             'ftp_username' => $ftpUsername,
             'theme' => $theme,
             'language' => $language,
+            'translations' => $translations,
             'language_cookie_name' => $this->config['localization']['language_cookie_name'],
             'language_cookie_lifetime' => $this->config['localization']['language_cookie_lifetime'],
             'file_icons' => $this->config['file_icons'],
@@ -104,8 +129,13 @@ class FileManagerController
             $this->response->json(['success' => false, 'message' => 'Invalid language']);
         }
 
-        // Save language preference
+        // Save language preference to both session and cookie
         $this->session->set('language', $language);
+
+        // Set language cookie
+        $cookieName = $this->config['localization']['language_cookie_name'] ?? 'webftp_language';
+        $cookieLifetime = $this->config['localization']['language_cookie_lifetime'] ?? 31536000;
+        setcookie($cookieName, $language, time() + $cookieLifetime, '/', '', true, true);
 
         $this->response->json(['success' => true, 'language' => $language]);
     }
@@ -117,7 +147,7 @@ class FileManagerController
     {
         // Check authentication
         if (!$this->session->isAuthenticated()) {
-            $this->logDebug("getFolderTree API: Unauthorized");
+            Logger::debug("getFolderTree API: Unauthorized");
             $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
@@ -126,10 +156,10 @@ class FileManagerController
         $ftpUsername = $this->session->get('ftp_username');
         $ftpPassword = $this->session->get('ftp_password');
 
-        $this->logDebug("getFolderTree API: Starting", ['ftpHost' => $ftpHost, 'ftpUsername' => $ftpUsername]);
+        Logger::debug("getFolderTree API: Starting", ['ftpHost' => $ftpHost, 'ftpUsername' => $ftpUsername]);
 
         if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            $this->logDebug("getFolderTree API: FTP credentials not found in session");
+            Logger::debug("getFolderTree API: FTP credentials not found in session");
             $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
         }
 
@@ -140,7 +170,7 @@ class FileManagerController
 
             // Connect to FTP server
             $ftpConfig = $this->config['ftp']['server'];
-            $this->logDebug("getFolderTree API: Connecting to FTP", [
+            Logger::debug("getFolderTree API: Connecting to FTP", [
                 'host' => $ftpConfig['host'],
                 'port' => $ftpConfig['port'],
                 'use_ssl' => $ftpConfig['use_ssl']
@@ -156,40 +186,40 @@ class FileManagerController
             );
 
             if (!$connectionResult['success']) {
-                $this->logDebug("getFolderTree API: Connection failed", ['message' => $connectionResult['message']]);
+                Logger::debug("getFolderTree API: Connection failed", ['message' => $connectionResult['message']]);
                 $this->response->json([
                     'success' => false,
                     'message' => $connectionResult['message']
                 ]);
             }
 
-            $this->logDebug("getFolderTree API: Connected successfully");
+            Logger::debug("getFolderTree API: Connected successfully");
 
             // Get path from request (default to root)
             $path = $this->request->get('path', '/');
-            $this->logDebug("getFolderTree API: Requested path", ['path' => $path]);
+            Logger::debug("getFolderTree API: Requested path", ['path' => $path]);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
             if ($sanitizedPath === null) {
-                $this->logDebug("getFolderTree API: Invalid path", ['path' => $path]);
+                Logger::debug("getFolderTree API: Invalid path", ['path' => $path]);
                 $this->response->json([
                     'success' => false,
                     'message' => 'Invalid path'
                 ]);
             }
 
-            $this->logDebug("getFolderTree API: Sanitized path", ['sanitizedPath' => $sanitizedPath]);
+            Logger::debug("getFolderTree API: Sanitized path", ['sanitizedPath' => $sanitizedPath]);
 
             // Get folder tree
             $tree = $ftp->getFolderTree($sanitizedPath);
 
-            $this->logDebug("getFolderTree API: Got tree", ['folder_count' => count($tree)]);
+            Logger::debug("getFolderTree API: Got tree", ['folder_count' => count($tree)]);
 
             // Disconnect
             $ftp->disconnect();
 
-            $this->logDebug("getFolderTree API: Disconnected, returning response");
+            Logger::debug("getFolderTree API: Disconnected, returning response");
 
             $this->response->json([
                 'success' => true,
@@ -198,7 +228,7 @@ class FileManagerController
             ]);
 
         } catch (\Exception $e) {
-            $this->logDebug("getFolderTree API: Exception", [
+            Logger::debug("getFolderTree API: Exception", [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
@@ -533,17 +563,4 @@ class FileManagerController
         }
     }
 
-    /**
-     * Log debug information
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->config['logging']['enabled']) {
-            $logPath = $this->config['logging']['log_path'];
-            $timestamp = date('Y-m-d H:i:s');
-            $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
-            $logMessage = "[{$timestamp}] [CONTROLLER_DEBUG] {$message}{$contextStr}\n";
-            @error_log($logMessage, 3, $logPath);
-        }
-    }
 }

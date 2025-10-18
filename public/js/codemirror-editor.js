@@ -221,9 +221,9 @@ window.addEventListener('DOMContentLoaded', function() {
                         isModified = true;
                         document.getElementById("editorModifiedStatus")?.classList.remove("hidden");
                     }
-                    // Update undo/redo button states when document changes
-                    if (window.updateUndoRedoButtons) {
-                        setTimeout(() => window.updateUndoRedoButtons(), 10);
+                    // Update all editor button states when document changes
+                    if (window.updateEditorButtons) {
+                        setTimeout(() => window.updateEditorButtons(), 10);
                     }
                 }
             }),

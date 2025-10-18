@@ -76,9 +76,13 @@ use WebFTP\Core\Response;
 use WebFTP\Core\SecurityManager;
 use WebFTP\Core\CsrfToken;
 use WebFTP\Core\ConfigValidator;
+use WebFTP\Core\Logger;
 use WebFTP\Models\Session;
 use WebFTP\Controllers\AuthController;
 use WebFTP\Controllers\FileManagerController;
+
+// Initialize Logger
+Logger::init($config);
 
 // Validate FTP configuration
 $configValidation = ConfigValidator::validateFtpConfig($config);

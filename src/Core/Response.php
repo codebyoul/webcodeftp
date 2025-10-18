@@ -94,6 +94,14 @@ class Response
         // Extract data for use in view
         extract($data, EXTR_SKIP);
 
+        // Make translations available globally for helper functions
+        if (isset($translations)) {
+            $GLOBALS['translations'] = $translations;
+        }
+
+        // Include view helpers for all views
+        require_once __DIR__ . '/ViewHelpers.php';
+
         // Include view file
         $viewPath = __DIR__ . "/../Views/{$view}.php";
 

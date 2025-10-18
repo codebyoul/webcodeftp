@@ -9,6 +9,7 @@ use WebFTP\Core\Response;
 use WebFTP\Core\SecurityManager;
 use WebFTP\Core\CsrfToken;
 use WebFTP\Core\Language;
+use WebFTP\Core\Logger;
 use WebFTP\Models\Session;
 use WebFTP\Models\FtpConnection;
 
@@ -121,10 +122,8 @@ class AuthController
             // Record failed attempt
             $this->security->recordFailedAttempt($clientIp);
 
-            // Log failed attempt if logging enabled
-            if ($this->config['logging']['log_auth_attempts']) {
-                error_log("Failed FTP login attempt from {$clientIp} to {$host}:{$port} as {$username}");
-            }
+            // Log failed attempt
+            Logger::auth($username, 'login', false, $clientIp);
 
             $this->session->flash('error', $result['message']);
             $this->response->redirect('/');
@@ -144,9 +143,7 @@ class AuthController
         $this->session->authenticate();
 
         // Log successful authentication
-        if ($this->config['logging']['log_auth_attempts']) {
-            error_log("Successful FTP login from {$clientIp} to {$host}:{$port} as {$username}");
-        }
+        Logger::auth($username, 'login', true, $clientIp);
 
         // Disconnect FTP (will reconnect when needed)
         $ftp->disconnect();
@@ -161,10 +158,10 @@ class AuthController
     public function logout(): void
     {
         // Log logout event
-        if ($this->config['logging']['log_auth_attempts'] && $this->session->isAuthenticated()) {
+        if ($this->session->isAuthenticated()) {
             $clientIp = $this->security->getClientIp();
-            $host = $this->session->get('ftp_host', 'unknown');
-            error_log("User logged out from {$clientIp} (was connected to {$host})");
+            $username = $this->session->get('ftp_username', 'unknown');
+            Logger::auth($username, 'logout', true, $clientIp);
         }
 
         // Destroy session

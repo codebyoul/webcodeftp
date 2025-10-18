@@ -6,6 +6,7 @@ namespace WebFTP\Models;
 
 use FTP\Connection;
 use WebFTP\Core\SecurityManager;
+use WebFTP\Core\Logger;
 
 /**
  * FTP Connection Manager
@@ -21,7 +22,8 @@ class FtpConnection
     public function __construct(
         private array $config,
         private SecurityManager $security
-    ) {}
+    ) {
+    }
 
     /**
      * Connect to FTP server
@@ -243,28 +245,29 @@ class FtpConnection
     public function getFolderTree(string $path = '/', int $maxDepth = 10, int $currentDepth = 0): array
     {
         if (!$this->isConnected() || $currentDepth >= $maxDepth) {
-            $this->logDebug("getFolderTree: Not connected or max depth reached", [
+            Logger::ftp("getFolderTree", [
                 'connected' => $this->isConnected(),
                 'currentDepth' => $currentDepth,
-                'maxDepth' => $maxDepth
-            ]);
+                'maxDepth' => $maxDepth,
+                'reason' => 'Not connected or max depth reached'
+            ], false);
             return [];
         }
 
-        $this->logDebug("getFolderTree: Fetching tree for path", ['path' => $path, 'depth' => $currentDepth]);
+        Logger::ftp("getFolderTree", ['path' => $path, 'depth' => $currentDepth]);
 
         // Save current directory
         $currentDir = @ftp_pwd($this->connection);
-        $this->logDebug("getFolderTree: Current directory", ['currentDir' => $currentDir]);
+        Logger::ftp("getFolderTree", ['currentDir' => $currentDir]);
 
         // Change to the target directory first
         // This is necessary because ftp_rawlist() doesn't support folders with spaces
         if (!@ftp_chdir($this->connection, $path)) {
-            $this->logDebug("getFolderTree: Failed to change to directory", ['path' => $path]);
+            Logger::ftp("getFolderTree", ['action' => 'Failed to change to directory', 'path' => $path], false);
             return [];
         }
 
-        $this->logDebug("getFolderTree: Successfully changed to directory", ['path' => $path]);
+        Logger::ftp("getFolderTree", ['action' => 'Successfully changed to directory', 'path' => $path]);
 
         // Use ftp_rawlist to get detailed directory listing of current directory
         $rawList = @ftp_rawlist($this->connection, ".");
@@ -275,17 +278,18 @@ class FtpConnection
         }
 
         if ($rawList === false || empty($rawList)) {
-            $this->logDebug("getFolderTree: ftp_rawlist returned false or empty", ['path' => $path]);
+            Logger::ftp("getFolderTree", ['action' => 'ftp_rawlist returned false or empty', 'path' => $path], false);
             return [];
         }
 
-        $this->logDebug("getFolderTree: Got raw list", ['path' => $path, 'count' => count($rawList)]);
+        Logger::ftp("getFolderTree", ['path' => $path, 'count' => count($rawList)]);
 
         $folders = [];
         $files = [];
 
         foreach ($rawList as $line) {
-            $this->logDebug("getFolderTree: Processing line", ['line' => $line]);
+            // Too verbose - commenting out line-by-line logging
+            // Logger::ftp("getFolderTree", ['line' => $line]);
 
             // Parse the raw FTP list line (Unix format)
             // Example: "drwxr-xr-x 2 user group 4096 Jan 01 12:00 foldername"
@@ -293,7 +297,7 @@ class FtpConnection
             $parts = preg_split('/\s+/', $line, 9);
 
             if (count($parts) < 9) {
-                $this->logDebug("getFolderTree: Line has less than 9 parts", ['parts_count' => count($parts)]);
+                Logger::ftp("getFolderTree", ['parts_count' => count($parts)]);
                 continue;
             }
 
@@ -309,7 +313,8 @@ class FtpConnection
             // Format the date
             $modified = $this->formatModifiedDate($month, $day, $timeOrYear);
 
-            $this->logDebug("getFolderTree: Parsed item", ['permissions' => $permissions, 'name' => $name, 'modified' => $modified]);
+            // Too verbose - commenting out item-by-item logging
+            // Logger::ftp("getFolderTree", ['permissions' => $permissions, 'name' => $name, 'modified' => $modified]);
 
             // Skip current and parent directory references
             if ($name === '.' || $name === '..') {
@@ -321,7 +326,8 @@ class FtpConnection
 
             // Check if it's a directory (first character is 'd')
             if ($permissions[0] === 'd') {
-                $this->logDebug("getFolderTree: Found directory", ['name' => $name, 'fullPath' => $fullPath]);
+                // Too verbose - commenting out individual file/folder logging
+                // Logger::ftp("getFolderTree", ['name' => $name, 'fullPath' => $fullPath]);
 
                 $folders[] = [
                     'name' => $name,
@@ -333,13 +339,14 @@ class FtpConnection
                 ];
             } else {
                 // It's a file
-                $this->logDebug("getFolderTree: Found file", ['name' => $name, 'fullPath' => $fullPath]);
+                // Too verbose - commenting out individual file/folder logging
+                // Logger::ftp("getFolderTree", ['name' => $name, 'fullPath' => $fullPath]);
 
                 $files[] = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'file',
-                    'size' => isset($parts[4]) ? (int)$parts[4] : 0,
+                    'size' => isset($parts[4]) ? (int) $parts[4] : 0,
                     'modified' => $modified,
                     'permissions' => $permissions
                 ];
@@ -347,18 +354,18 @@ class FtpConnection
         }
 
         // Sort folders and files alphabetically
-        usort($folders, function($a, $b) {
+        usort($folders, function ($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
 
-        usort($files, function($a, $b) {
+        usort($files, function ($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
 
         // Combine folders first, then files
         $tree = array_merge($folders, $files);
 
-        $this->logDebug("getFolderTree: Returning tree", [
+        Logger::ftp("getFolderTree", [
             'path' => $path,
             'folder_count' => count($folders),
             'file_count' => count($files),
@@ -368,19 +375,6 @@ class FtpConnection
         return $tree;
     }
 
-    /**
-     * Log debug information
-     */
-    private function logDebug(string $message, array $context = []): void
-    {
-        if ($this->config['logging']['enabled']) {
-            $logPath = $this->config['logging']['log_path'];
-            $timestamp = date('Y-m-d H:i:s');
-            $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
-            $logMessage = "[{$timestamp}] [FTP_DEBUG] {$message}{$contextStr}\n";
-            @error_log($logMessage, 3, $logPath);
-        }
-    }
 
     /**
      * Get files and folders in a directory (non-recursive)
@@ -391,18 +385,18 @@ class FtpConnection
     public function getDirectoryContents(string $directory = '/'): array
     {
         if (!$this->isConnected()) {
-            $this->logDebug("getDirectoryContents: Not connected");
+            Logger::ftp("getDirectoryContents", ['reason' => 'Not connected'], false);
             return ['folders' => [], 'files' => []];
         }
 
-        $this->logDebug("getDirectoryContents: Fetching contents for directory", ['directory' => $directory]);
+        Logger::ftp("getDirectoryContents", ['directory' => $directory]);
 
         // Save current directory
         $currentDir = @ftp_pwd($this->connection);
 
         // Change to the target directory first
         if (!@ftp_chdir($this->connection, $directory)) {
-            $this->logDebug("getDirectoryContents: Failed to change to directory", ['directory' => $directory]);
+            Logger::ftp("getDirectoryContents", ['directory' => $directory]);
             return ['folders' => [], 'files' => []];
         }
 
@@ -415,11 +409,11 @@ class FtpConnection
         }
 
         if ($rawList === false || empty($rawList)) {
-            $this->logDebug("getDirectoryContents: ftp_rawlist returned false or empty", ['directory' => $directory]);
+            Logger::ftp("getDirectoryContents", ['directory' => $directory]);
             return ['folders' => [], 'files' => []];
         }
 
-        $this->logDebug("getDirectoryContents: Got raw list", ['directory' => $directory, 'count' => count($rawList)]);
+        Logger::ftp("getDirectoryContents", ['directory' => $directory, 'count' => count($rawList)]);
 
         $folders = [];
         $files = [];
@@ -467,7 +461,7 @@ class FtpConnection
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'file',
-                    'size' => (int)$parts[4],
+                    'size' => (int) $parts[4],
                     'modified' => $modified,
                     'permissions' => $permissions
                 ];
@@ -475,15 +469,15 @@ class FtpConnection
         }
 
         // Sort alphabetically
-        usort($folders, function($a, $b) {
+        usort($folders, function ($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
 
-        usort($files, function($a, $b) {
+        usort($files, function ($a, $b) {
             return strcasecmp($a['name'], $b['name']);
         });
 
-        $this->logDebug("getDirectoryContents: Returning contents", [
+        Logger::ftp("getDirectoryContents", [
             'directory' => $directory,
             'folder_count' => count($folders),
             'file_count' => count($files)
@@ -512,9 +506,18 @@ class FtpConnection
 
         // Month mapping (English FTP format)
         $months = [
-            'Jan' => '01', 'Feb' => '02', 'Mar' => '03', 'Apr' => '04',
-            'May' => '05', 'Jun' => '06', 'Jul' => '07', 'Aug' => '08',
-            'Sep' => '09', 'Oct' => '10', 'Nov' => '11', 'Dec' => '12'
+            'Jan' => '01',
+            'Feb' => '02',
+            'Mar' => '03',
+            'Apr' => '04',
+            'May' => '05',
+            'Jun' => '06',
+            'Jul' => '07',
+            'Aug' => '08',
+            'Sep' => '09',
+            'Oct' => '10',
+            'Nov' => '11',
+            'Dec' => '12'
         ];
 
         $monthNum = $months[$month] ?? '01';
