@@ -35,7 +35,7 @@ class AuthController
     {
         // Redirect if already authenticated
         if ($this->session->isAuthenticated()) {
-            $this->response->redirect('/dashboard');
+            $this->response->redirect('/filemanager');
         }
 
         // Generate CSRF token
@@ -74,7 +74,7 @@ class AuthController
     {
         // Check if already authenticated
         if ($this->session->isAuthenticated()) {
-            $this->response->redirect('/dashboard');
+            $this->response->redirect('/filemanager');
         }
 
         // Validate CSRF token
@@ -151,8 +151,8 @@ class AuthController
         // Disconnect FTP (will reconnect when needed)
         $ftp->disconnect();
 
-        // Redirect to dashboard
-        $this->response->redirect('/dashboard');
+        // Redirect to file manager
+        $this->response->redirect('/filemanager');
     }
 
     /**

@@ -78,7 +78,7 @@ use WebFTP\Core\CsrfToken;
 use WebFTP\Core\ConfigValidator;
 use WebFTP\Models\Session;
 use WebFTP\Controllers\AuthController;
-use WebFTP\Controllers\DashboardController;
+use WebFTP\Controllers\FileManagerController;
 
 // Validate FTP configuration
 $configValidation = ConfigValidator::validateFtpConfig($config);
@@ -120,29 +120,39 @@ $router->get('/logout', function () use ($config, $request, $response, $session,
     $controller->logout();
 });
 
-$router->get('/dashboard', function () use ($config, $request, $response, $session) {
-    $controller = new DashboardController($config, $request, $response, $session);
+$router->get('/filemanager', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
     $controller->index();
 });
 
 $router->post('/api/theme', function () use ($config, $request, $response, $session) {
-    $controller = new DashboardController($config, $request, $response, $session);
+    $controller = new FileManagerController($config, $request, $response, $session);
     $controller->updateTheme();
 });
 
 $router->post('/api/language', function () use ($config, $request, $response, $session) {
-    $controller = new DashboardController($config, $request, $response, $session);
+    $controller = new FileManagerController($config, $request, $response, $session);
     $controller->updateLanguage();
 });
 
 $router->get('/api/folder-tree', function () use ($config, $request, $response, $session) {
-    $controller = new DashboardController($config, $request, $response, $session);
+    $controller = new FileManagerController($config, $request, $response, $session);
     $controller->getFolderTree();
 });
 
 $router->get('/api/folder-contents', function () use ($config, $request, $response, $session) {
-    $controller = new DashboardController($config, $request, $response, $session);
+    $controller = new FileManagerController($config, $request, $response, $session);
     $controller->getFolderContents();
+});
+
+$router->get('/api/file/read', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->readFile();
+});
+
+$router->post('/api/file/write', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->writeFile();
 });
 
 // Dispatch request

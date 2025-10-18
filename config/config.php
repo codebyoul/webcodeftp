@@ -98,7 +98,7 @@ return [
             'X-XSS-Protection' => '1; mode=block',
             'Referrer-Policy' => 'strict-origin-when-cross-origin',
             'Permissions-Policy' => 'geolocation=(), microphone=(), camera=()',
-            'Content-Security-Policy' => "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; style-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none';",
+            'Content-Security-Policy' => "default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://esm.sh 'unsafe-inline'; style-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data:; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none';",
         ],
 
         // Input Validation
@@ -262,6 +262,80 @@ return [
             'extensions' => [],
             'icon' => 'fas fa-file text-gray-400 dark:text-gray-500',
         ],
+    ],
+
+    // ============================================================================
+    // FILE EDITOR & PREVIEW
+    // ============================================================================
+
+    'file_editor' => [
+        'enabled' => true,
+        'max_file_size' => 5 * 1024 * 1024, // 5MB maximum file size for editing
+
+        // Editable file extensions (text-based files)
+        // Extended to support ALL major programming languages and frameworks
+        'editable_extensions' => [
+            // PHP (Laravel, Symfony, etc.)
+            'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'php8', 'phps',
+
+            // JavaScript / TypeScript / Node.js
+            'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx',
+
+            // Python
+            'py', 'pyw', 'pyi', 'pyx', 'wsgi',
+
+            // Java
+            'java', 'jar',
+
+            // C / C++
+            'c', 'cpp', 'cc', 'cxx', 'h', 'hpp', 'hh', 'hxx',
+
+            // Other compiled languages
+            'go', 'rs', 'swift', 'kt', 'cs', 'scala',
+
+            // Scripting languages
+            'rb', 'r', 'pl', 'lua', 'sh', 'bash', 'zsh', 'fish', 'ksh',
+
+            // Web files & Markup
+            'html', 'htm', 'xhtml', 'shtml',
+
+            // CSS / Preprocessors
+            'css', 'scss', 'sass', 'less', 'styl', 'stylus',
+
+            // Frontend frameworks / components
+            'vue', 'svelte',
+
+            // Templates (Laravel, Symfony, Python, Node.js)
+            'blade', 'twig', 'jinja', 'jinja2', 'ejs', 'hbs', 'mustache',
+
+            // Data / Config files
+            'json', 'jsonc', 'json5', 'xml', 'yaml', 'yml', 'toml', 'ini', 'conf', 'config',
+            'env', 'properties', 'htaccess',
+
+            // Markdown / Documentation
+            'md', 'markdown', 'mdown', 'mkd', 'mdx', 'rst',
+
+            // Database
+            'sql', 'mysql', 'pgsql', 'sqlite', 'psql',
+
+            // WebAssembly
+            'wast', 'wat',
+
+            // Text / Log files
+            'txt', 'log', 'csv', 'tsv',
+
+            // Development config files
+            'gitignore', 'dockerignore', 'editorconfig', 'npmrc', 'eslintrc', 'prettierrc', 'lock',
+        ],
+
+        // Preview file extensions (images)
+        'preview_extensions' => [
+            'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico',
+        ],
+
+        // CodeMirror themes
+        'codemirror_theme_light' => 'light',
+        'codemirror_theme_dark' => 'oneDark',
     ],
 
 ];
