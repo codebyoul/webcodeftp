@@ -48,6 +48,7 @@ class FileManagerController
         // Render file manager view
         $this->response->view('filemanager', [
             'app_name' => $this->config['app']['name'],
+            'asset_version' => $this->config['app']['asset_version'] ?? '1.0.0',
             'ftp_host' => $ftpHost,
             'ftp_username' => $ftpUsername,
             'theme' => $theme,

@@ -152,15 +152,11 @@ window.addEventListener('DOMContentLoaded', function() {
         if (mode && typeof mode === "function") {
             try {
                 const result = mode();
-                console.log(`Loaded syntax highlighting for .${extension}`);
                 return result;
             } catch (error) {
-                console.warn("Error loading language mode for", extension, error);
                 return [];
             }
         }
-
-        console.log(`No syntax highlighting for .${extension}, using plain text editor`);
         return [];
     }
 
@@ -224,6 +220,10 @@ window.addEventListener('DOMContentLoaded', function() {
                     if (!isModified) {
                         isModified = true;
                         document.getElementById("editorModifiedStatus")?.classList.remove("hidden");
+                    }
+                    // Update undo/redo button states when document changes
+                    if (window.updateUndoRedoButtons) {
+                        setTimeout(() => window.updateUndoRedoButtons(), 10);
                     }
                 }
             }),
@@ -321,7 +321,47 @@ window.addEventListener('DOMContentLoaded', function() {
             originalContent = content;
         },
         getOriginalContent: () => originalContent,
+        // Add undo/redo methods for CodeMirror 6
+        undo: () => {
+            if (editorView && window.CodeMirrorBundle) {
+                const { undo } = window.CodeMirrorBundle;
+                if (undo) {
+                    // In CodeMirror 6, commands return a boolean indicating success
+                    return undo(editorView);
+                }
+            }
+            return false;
+        },
+        redo: () => {
+            if (editorView && window.CodeMirrorBundle) {
+                const { redo } = window.CodeMirrorBundle;
+                if (redo) {
+                    // In CodeMirror 6, commands return a boolean indicating success
+                    return redo(editorView);
+                }
+            }
+            return false;
+        },
+        // Check if undo/redo are available
+        canUndo: () => {
+            if (editorView && window.CodeMirrorBundle) {
+                const { undoDepth } = window.CodeMirrorBundle;
+                if (undoDepth) {
+                    return undoDepth(editorView.state) > 0;
+                }
+            }
+            return false;
+        },
+        canRedo: () => {
+            if (editorView && window.CodeMirrorBundle) {
+                const { redoDepth } = window.CodeMirrorBundle;
+                if (redoDepth) {
+                    return redoDepth(editorView.state) > 0;
+                }
+            }
+            return false;
+        },
+        // Expose the editor view for advanced operations
+        getEditorView: () => editorView,
     };
-
-    console.log("CodeMirror editor module ready");
 });

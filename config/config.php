@@ -24,6 +24,9 @@ return [
         'environment' => 'production', // 'development' or 'production'
         'timezone' => 'UTC',
         'charset' => 'UTF-8',
+        // Asset version for cache busting (increment when JS/CSS files change)
+        // Format: major.minor.patch (e.g., 1.0.0, 1.0.1, 1.1.0, 2.0.0)
+        'asset_version' => '1.0.2',
     ],
 
     // ============================================================================

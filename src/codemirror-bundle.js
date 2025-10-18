@@ -6,6 +6,7 @@ import { EditorView, lineNumbers, highlightActiveLineGutter, keymap } from '@cod
 import { basicSetup } from 'codemirror';
 import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { undo, redo, undoDepth, redoDepth } from '@codemirror/commands';
 
 // Language modes
 import { php } from '@codemirror/lang-php';
@@ -39,6 +40,12 @@ export default {
   lineNumbers,
   highlightActiveLineGutter,
   keymap,
+
+  // Commands
+  undo,
+  redo,
+  undoDepth,
+  redoDepth,
 
   // Language support
   defaultHighlightStyle,

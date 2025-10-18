@@ -54,10 +54,10 @@
     </script>
 
     <!-- CodeMirror 6 Bundle (Compiled) -->
-    <script src="/js/dist/codemirror-bundle.js"></script>
+    <script src="/js/dist/codemirror-bundle.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0', ENT_QUOTES, 'UTF-8') ?>"></script>
 
     <!-- CodeMirror Editor Module (Uses the bundle) -->
-    <script src="/js/codemirror-editor.js"></script>
+    <script src="/js/codemirror-editor.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0', ENT_QUOTES, 'UTF-8') ?>"></script>
 </head>
 <body class="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
 
@@ -207,8 +207,8 @@
             <!-- Right Content Area -->
             <main class="flex-1 flex flex-col overflow-hidden">
 
-                <!-- Action Toolbar -->
-                <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                <!-- Normal File Manager Toolbar -->
+                <div id="fileManagerToolbar" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
                     <div class="flex items-center justify-between gap-4">
 
                         <!-- Left: Action Icons -->
@@ -262,8 +262,61 @@
                     </div>
                 </div>
 
+                <!-- Editor Toolbar (shown when editor is active) -->
+                <div id="editorToolbar" class="hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                    <div class="flex items-center justify-between">
+                        <!-- Left: File Info & Actions -->
+                        <div class="flex items-center gap-3">
+                            <!-- File Icon and Name -->
+                            <div class="flex items-center gap-2">
+                                <i id="editorToolbarFileIcon" class="fas fa-file text-lg text-gray-500 dark:text-gray-400"></i>
+                                <span id="editorToolbarFileName" class="text-sm font-medium text-gray-900 dark:text-white">Untitled</span>
+                                <span id="editorToolbarModifiedBadge" class="hidden px-2 py-0.5 bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400 text-xs rounded">Modified</span>
+                            </div>
+
+                            <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+
+                            <!-- Editor Actions -->
+                            <div class="flex items-center gap-1">
+                                <button id="editorToolbarSaveBtn" onclick="saveFile()" class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition flex items-center gap-1.5" title="Save (Ctrl+S)">
+                                    <i class="fas fa-save"></i>
+                                    <span>Save</span>
+                                </button>
+                                <button onclick="refreshFile()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="Refresh from Server">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button onclick="searchInFile()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="Find (Ctrl+F)">
+                                    <i class="fas fa-search"></i>
+                                </button>
+
+                                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+
+                                <button onclick="editorUndo()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="Undo (Ctrl+Z)" disabled>
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button onclick="editorRedo()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="Redo (Ctrl+Y)" disabled>
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right: Status and Close -->
+                        <div class="flex items-center gap-3">
+                            <div class="text-xs text-gray-600 dark:text-gray-400">
+                                <span id="editorToolbarFileType">Plain Text</span>
+                                <span class="mx-2">•</span>
+                                <span id="editorToolbarFileSize">0 B</span>
+                            </div>
+
+                            <button onclick="closeEditor()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 rounded transition" title="Close Editor (Esc)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- File Content Area -->
-                <div class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+                <div id="mainContentArea" class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
                     <!-- Loading State -->
                     <div id="contentLoading" class="hidden flex items-center justify-center h-full">
                         <div class="text-center">
@@ -279,6 +332,11 @@
                             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Select a Folder</h3>
                             <p class="text-gray-500 dark:text-gray-400">Click on a folder in the sidebar to view its contents</p>
                         </div>
+                    </div>
+
+                    <!-- Integrated Editor View -->
+                    <div id="editorView" class="hidden h-full flex flex-col">
+                        <?php include __DIR__ . '/filemanager_editor_content.php'; ?>
                     </div>
 
                 <!-- List View (Table) -->
@@ -369,120 +427,15 @@
         </div>
     </div>
 
-    <!-- Editor Panel (Slide-out from right) -->
-    <div id="editorPanel" class="fixed inset-y-0 right-0 w-full md:w-11/12 lg:w-5/6 xl:w-4/5 bg-white dark:bg-gray-900 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col border-l-2 border-gray-200 dark:border-gray-700">
-
-        <!-- Panel Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <!-- File Info -->
-            <div class="flex items-center gap-3 flex-1 min-w-0">
-                <i id="editorFileIcon" class="fas fa-file text-xl text-gray-500 dark:text-gray-400"></i>
-                <div class="flex-1 min-w-0">
-                    <h3 id="editorFileName" class="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                        File Name
-                    </h3>
-                    <p id="editorFilePath" class="text-xs text-gray-500 dark:text-gray-400 truncate font-mono">
-                        /path/to/file
-                    </p>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 ml-4">
-                <!-- Save Button (hidden for preview mode) -->
-                <button id="editorSaveBtn" onclick="saveFile()" class="hidden px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 flex items-center gap-2">
-                    <i class="fas fa-save"></i>
-                    <span>Save</span>
-                    <span class="text-xs opacity-75">(Ctrl+S)</span>
-                </button>
-
-                <!-- Close Button -->
-                <button onclick="closeEditor()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Panel Content -->
-        <div class="flex-1 overflow-hidden relative">
-
-            <!-- Loading State -->
-            <div id="editorLoading" class="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-                <div class="text-center">
-                    <i class="fas fa-spinner fa-spin text-4xl text-primary-500 mb-3"></i>
-                    <p class="text-gray-600 dark:text-gray-400">Loading file...</p>
-                </div>
-            </div>
-
-            <!-- Error State -->
-            <div id="editorError" class="hidden absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900 p-8">
-                <div class="text-center max-w-md">
-                    <i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Failed to Load File</h3>
-                    <p id="editorErrorMessage" class="text-gray-600 dark:text-gray-400 mb-6">
-                        An error occurred while loading the file.
-                    </p>
-                    <button onclick="closeEditor()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">
-                        Close
-                    </button>
-                </div>
-            </div>
-
-            <!-- Code Editor Container -->
-            <div id="editorContainer" class="hidden h-full">
-                <!-- CodeMirror will be initialized here -->
-            </div>
-
-            <!-- Image Preview Container -->
-            <div id="imagePreviewContainer" class="hidden h-full overflow-auto bg-gray-100 dark:bg-gray-800 flex items-center justify-center p-8">
-                <div class="max-w-full">
-                    <img id="imagePreview" src="" alt="Image Preview" class="max-w-full max-h-full rounded-lg shadow-xl border border-gray-300 dark:border-gray-600">
-                </div>
-            </div>
-
-            <!-- File Too Large Warning -->
-            <div id="editorFileTooLarge" class="hidden absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900 p-8">
-                <div class="text-center max-w-md">
-                    <i class="fas fa-file-circle-exclamation text-5xl text-orange-500 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">File Too Large</h3>
-                    <p class="text-gray-600 dark:text-gray-400 mb-2">
-                        This file exceeds the maximum size limit for editing.
-                    </p>
-                    <p id="editorFileSizeInfo" class="text-sm text-gray-500 dark:text-gray-500 mb-6 font-mono">
-                        File size: 0 MB / Max: 5 MB
-                    </p>
-                    <button onclick="closeEditor()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition">
-                        Close
-                    </button>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Panel Footer (Status Bar) -->
-        <div id="editorFooter" class="hidden px-6 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-between text-xs">
-            <div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-                <span id="editorFileSize">Size: 0 B</span>
-                <span id="editorFileExtension">Type: txt</span>
-                <span id="editorModifiedStatus" class="hidden text-orange-500 dark:text-orange-400 font-medium">
-                    <i class="fas fa-circle text-xs"></i> Modified
-                </span>
-            </div>
-            <div class="text-gray-500 dark:text-gray-500">
-                <span>Press <kbd class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs">Esc</kbd> to close</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Editor Panel Overlay (Click to close) -->
-    <div id="editorOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300" onclick="closeEditor()"></div>
-
     <!-- Vanilla JavaScript for Interactivity -->
     <!-- File Manager JavaScript (External) -->
-    <script src="/js/filemanager.js"></script>
+    <script src="/js/filemanager.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0', ENT_QUOTES, 'UTF-8') ?>"></script>
+
+    <!-- Integrated Editor JavaScript -->
+    <script src="/js/integrated-editor.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0', ENT_QUOTES, 'UTF-8') ?>"></script>
 
     <!-- Theme & Language Persistence -->
-    <script src="/js/theme-handler.js"></script>
+    <script src="/js/theme-handler.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0', ENT_QUOTES, 'UTF-8') ?>"></script>
 
 </body>
 </html>
