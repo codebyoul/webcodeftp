@@ -45,9 +45,6 @@ function openIntegratedEditor(path) {
         if (document.getElementById("editorFileName")) {
           document.getElementById("editorFileName").textContent = fileName;
         }
-        if (document.getElementById("editorFileIcon")) {
-          document.getElementById("editorFileIcon").className = icon;
-        }
         if (document.getElementById("editorFileType")) {
           document.getElementById("editorFileType").textContent =
             getFileTypeName(extension);

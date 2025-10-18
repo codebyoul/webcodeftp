@@ -6,7 +6,6 @@
         <!-- File Info Bar -->
         <div class="px-4 py-2 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
             <div class="flex items-center gap-3">
-                <i id="editorFileIcon" class="fas fa-file text-lg text-gray-500 dark:text-gray-400"></i>
                 <div class="flex flex-col">
                     <span id="editorFileName" class="text-sm font-medium text-gray-900 dark:text-white">Untitled</span>
                     <span id="editorFilePath" class="text-xs text-gray-500 dark:text-gray-400 font-mono">/</span>
