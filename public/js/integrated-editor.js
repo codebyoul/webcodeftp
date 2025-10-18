@@ -11,10 +11,6 @@ function openIntegratedEditor(path) {
   // Store current file
   currentEditingFile = path;
 
-  // Get CSRF token
-  const csrfToken =
-    document.querySelector('meta[name="csrf-token"]')?.content || "";
-
   // Hide all content views
   document.getElementById("contentEmpty").classList.add("hidden");
   document.getElementById("listView").classList.add("hidden");
@@ -93,7 +89,7 @@ function openIntegratedEditor(path) {
 /**
  * Save file
  */
-function saveFile() {
+async function saveFile() {
   if (!window.codeMirrorEditor || !currentEditingFile) return;
 
   // Check if file is modified
@@ -102,8 +98,6 @@ function saveFile() {
   }
 
   const content = window.codeMirrorEditor.getContent();
-  const csrfToken =
-    document.querySelector('meta[name="csrf-token"]')?.content || "";
 
   // Show saving state
   const saveBtn = document.getElementById("editorToolbarSaveBtn");
@@ -112,49 +106,60 @@ function saveFile() {
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   saveBtn.disabled = true;
 
-  // Create URL-encoded form data
-  const params = new URLSearchParams();
-  params.append("path", currentEditingFile);
-  params.append("content", content);
-  params.append("_csrf_token", csrfToken);
+  try {
+    // First, get a fresh CSRF token
+    const tokenResponse = await fetch("/api/csrf-token");
+    const tokenData = await tokenResponse.json();
 
-  fetch("/api/file/write", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params.toString(),
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.success) {
-        // Update original content
-        originalContent = content;
-        window.codeMirrorEditor.setOriginalContent(content);
-        window.codeMirrorEditor.setModified(false);
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
 
-        // Hide modified status
-        document
-          .getElementById("editorModifiedStatus")
-          ?.classList.add("hidden");
+    const csrfToken = tokenData.csrf_token;
 
-        // Show success icon briefly
-        saveBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
-        setTimeout(() => {
-          saveBtn.innerHTML = originalIcon;
-          updateSaveButton(); // Update button state
-        }, 2000);
-      } else {
-        alert("Failed to save: " + (data.message || "Unknown error"));
+    // Create URL-encoded form data
+    const params = new URLSearchParams();
+    params.append("path", currentEditingFile);
+    params.append("content", content);
+    params.append("_csrf_token", csrfToken);
+
+    const saveResponse = await fetch("/api/file/write", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await saveResponse.json();
+
+    if (data.success) {
+      // Update original content
+      originalContent = content;
+      window.codeMirrorEditor.setOriginalContent(content);
+      window.codeMirrorEditor.setModified(false);
+
+      // Hide modified status
+      document
+        .getElementById("editorModifiedStatus")
+        ?.classList.add("hidden");
+
+      // Show success icon briefly
+      saveBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+      setTimeout(() => {
         saveBtn.innerHTML = originalIcon;
-        saveBtn.disabled = false;
-      }
-    })
-    .catch((error) => {
-      alert("Failed to save file: " + error.message);
+        updateSaveButton(); // Update button state
+      }, 2000);
+    } else {
+      alert("Failed to save: " + (data.message || "Unknown error"));
       saveBtn.innerHTML = originalIcon;
       saveBtn.disabled = false;
-    });
+    }
+  } catch (error) {
+    alert("Failed to save file: " + error.message);
+    saveBtn.innerHTML = originalIcon;
+    saveBtn.disabled = false;
+  }
 }
 
 /**
@@ -177,14 +182,12 @@ function refreshFile() {
 }
 
 /**
- * Search in file
+ * Search in file - open CodeMirror search panel
  */
 function searchInFile() {
-  // CodeMirror has built-in search - trigger it
-  if (window.codeMirrorEditor) {
-    // This would trigger CodeMirror's search dialog
-    // For now, we can use browser's find
-    alert("Use Ctrl+F or Cmd+F to search in the editor");
+  // Call openSearchPanel just like in the example
+  if (window.codeMirrorEditor && window.codeMirrorEditor.openSearchPanel) {
+    window.codeMirrorEditor.openSearchPanel();
   }
 }
 

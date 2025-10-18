@@ -564,4 +564,30 @@ class FileManagerController
         }
     }
 
+    /**
+     * Get fresh CSRF token via AJAX
+     *
+     * Used when the editor needs a fresh token for saving
+     * after the page has been open for a while
+     */
+    public function getCsrfToken()
+    {
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json([
+                'success' => false,
+                'message' => 'Not authenticated'
+            ]);
+            return;
+        }
+
+        // Generate new CSRF token
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrfToken = $csrf->getToken();
+
+        $this->response->json([
+            'success' => true,
+            'csrf_token' => $csrfToken
+        ]);
+    }
+
 }

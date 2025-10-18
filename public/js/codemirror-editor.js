@@ -21,6 +21,7 @@ window.addEventListener("DOMContentLoaded", function () {
     autocompletion,
     linter,
     search,
+    openSearchPanel,
     lintGutter,
   } = window.CodeMirrorBundle;
 
@@ -299,5 +300,12 @@ window.addEventListener("DOMContentLoaded", function () {
     },
     // Expose the editor view for advanced operations
     getEditorView: () => editorView,
+    // Open search panel - exactly like the example
+    openSearchPanel: () => {
+      if (editorView && openSearchPanel) {
+        // Call openSearchPanel with the editorView instance
+        openSearchPanel(editorView);
+      }
+    },
   };
 });

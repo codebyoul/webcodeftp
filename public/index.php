@@ -171,6 +171,23 @@ $router->post('/api/file/write', function () use ($config, $request, $response, 
     }
 });
 
+$router->get('/api/csrf-token', function () use ($config, $request, $response, $session) {
+    try {
+        $controller = new FileManagerController($config, $request, $response, $session);
+        $controller->getCsrfToken();
+    } catch (\Throwable $e) {
+        Logger::error('API csrf-token error', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        $response->json([
+            'success' => false,
+            'message' => 'Internal error: ' . $e->getMessage()
+        ]);
+    }
+});
+
 // Dispatch request
 try {
     $method = $request->method();
