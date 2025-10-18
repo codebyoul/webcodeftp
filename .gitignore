@@ -1,0 +1,29 @@
+# Development guidelines
+CLAUDE.md
+
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# SSL certificates
+ssl/
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+# VS Code - ignore workspace settings but keep project settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json

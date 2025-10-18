@@ -20,6 +20,7 @@ window.addEventListener("DOMContentLoaded", function () {
     languages,
     autocompletion,
     linter,
+    search,
     lintGutter,
   } = window.CodeMirrorBundle;
 
@@ -143,6 +144,9 @@ window.addEventListener("DOMContentLoaded", function () {
 
       // Linting support
       lintGutter(),
+
+      // search
+      search({ top: true }),
 
       // Editable state
       EditorView.editable.of(!isReadOnly),
