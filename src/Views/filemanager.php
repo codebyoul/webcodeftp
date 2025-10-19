@@ -317,6 +317,50 @@
                         <?php include __DIR__ . '/filemanager_editor_content.php'; ?>
                     </div>
 
+                    <!-- Image Preview View -->
+                    <div id="imagePreviewView" class="hidden h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+                        <!-- Image Toolbar -->
+                        <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+                            <!-- Left: Image Info -->
+                            <div class="flex items-center gap-4">
+                                <i id="imagePreviewIcon" class="fas fa-image text-2xl text-blue-500 dark:text-blue-400"></i>
+                                <div>
+                                    <h3 id="imagePreviewFileName" class="text-sm font-semibold text-gray-900 dark:text-white">Image</h3>
+                                    <p id="imagePreviewInfo" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                                </div>
+                            </div>
+
+                            <!-- Right: Controls -->
+                            <div class="flex items-center gap-2">
+                                <button onclick="zoomImageOut()" class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="Zoom Out">
+                                    <i class="fas fa-search-minus"></i>
+                                </button>
+                                <button onclick="resetImageZoom()" class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="Reset Zoom">
+                                    <i class="fas fa-compress"></i>
+                                </button>
+                                <button onclick="zoomImageIn()" class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="Zoom In">
+                                    <i class="fas fa-search-plus"></i>
+                                </button>
+                                <div class="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+                                <button onclick="downloadImage()" class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition flex items-center gap-1.5" title="Download">
+                                    <i class="fas fa-download"></i>
+                                    <span>Download</span>
+                                </button>
+                                <button onclick="closeImagePreview()" class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition flex items-center gap-1.5" title="Close">
+                                    <i class="fas fa-times"></i>
+                                    <span>Close</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Image Container -->
+                        <div class="flex-1 overflow-auto flex items-center justify-center p-8">
+                            <div class="relative">
+                                <img id="imagePreviewImg" src="" alt="Preview" class="max-w-full h-auto shadow-2xl rounded-lg transition-transform duration-200" style="transform-origin: center center;">
+                            </div>
+                        </div>
+                    </div>
+
                 <!-- List View (Table) -->
                 <div id="listView" class="h-full hidden overflow-auto">
                     <table class="w-full text-sm">

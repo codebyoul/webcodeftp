@@ -2,13 +2,33 @@
 // Handles file operations, UI interactions, and file browser logic
 
 /**
- * Preview/Edit file using integrated editor
+ * Preview/Edit file using integrated editor or image preview
  */
 function previewFile(path) {
-  // Use integrated editor (it will update the URL)
-  if (typeof openIntegratedEditor === 'function') {
-    openIntegratedEditor(path, true);
+  // Check if it's an image file
+  const filename = path.split('/').pop();
+  if (isImageFile(filename)) {
+    // Get file data from current context and show image preview
+    // We need to fetch the file data to get size and other details
+    fetch(`/api/folder-contents?path=${encodeURIComponent(path.substring(0, path.lastIndexOf('/')) || '/')}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Find the file in the returned data
+          const file = data.files.find(f => f.path === path);
+          if (file) {
+            displayImagePreview(file);
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Error loading file data:', error);
+      });
   } else {
+    // Use integrated editor for code files
+    if (typeof openIntegratedEditor === 'function') {
+      openIntegratedEditor(path, true);
+    }
   }
 }
 
@@ -707,7 +727,7 @@ document.addEventListener("DOMContentLoaded", function () {
     card.dataset.path = item.path;
     card.dataset.type = type;
 
-    // Add click handler
+    // Add click handler (single click)
     card.addEventListener("click", function (e) {
       if (type === "folder") {
         loadFolderContents(item.path);
@@ -739,6 +759,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Show file details
         displaySelectedFile(item);
+      }
+    });
+
+    // Add double-click handler (professional behavior)
+    card.addEventListener("dblclick", function (e) {
+      if (type === "folder") {
+        // Double-click folder = open it (same as single click for folders)
+        loadFolderContents(item.path);
+        clearSelection();
+      } else {
+        // Double-click file = edit/preview it
+        previewFile(item.path);
       }
     });
 
@@ -904,13 +936,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         }
                     </div>
 
-                    <!-- Preview Button (Small & Elegant) -->
+                    <!-- Edit/Preview Button (Small & Elegant) -->
                     <div class="flex items-center justify-center">
                         <button onclick="previewFile('${escapeHtml(
                           file.path
                         )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
-                            <i class="fas fa-eye text-sm"></i>
-                            <span>Preview File</span>
+                            <i class="fas ${isImageFile(file.name) ? 'fa-eye' : 'fa-pen-to-square'} text-sm"></i>
+                            <span>${isImageFile(file.name) ? 'Preview Image' : 'Edit File'}</span>
                         </button>
                     </div>
 
@@ -1154,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // Row click handler
+    // Row click handler (single click)
     row.addEventListener("click", function (e) {
       // If clicking on the checkbox cell, let the checkbox handler deal with it
       if (e.target === checkbox || e.target === checkboxCell) {
@@ -1168,6 +1200,23 @@ document.addEventListener("DOMContentLoaded", function () {
         // Toggle checkbox when clicking row
         checkbox.checked = !checkbox.checked;
         checkbox.dispatchEvent(new Event("change"));
+      }
+    });
+
+    // Row double-click handler (professional behavior)
+    row.addEventListener("dblclick", function (e) {
+      // If clicking on the checkbox cell, ignore
+      if (e.target === checkbox || e.target === checkboxCell) {
+        return;
+      }
+
+      if (type === "folder") {
+        // Double-click folder = open it (same as single click for folders)
+        loadFolderContents(item.path);
+        clearSelection();
+      } else {
+        // Double-click file = edit/preview it
+        previewFile(item.path);
       }
     });
 
@@ -1557,3 +1606,127 @@ document.addEventListener("DOMContentLoaded", function () {
     // Editor shortcuts are handled by integrated-editor.js
   });
 });
+
+// =================================================================
+// IMAGE PREVIEW FUNCTIONS
+// =================================================================
+
+let currentImagePath = null;
+let currentImageZoom = 1.0;
+
+/**
+ * Check if file is an image based on extension
+ */
+function isImageFile(filename) {
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'tif'];
+  const extension = filename.split('.').pop().toLowerCase();
+  return imageExtensions.includes(extension);
+}
+
+/**
+ * Display image preview
+ */
+function displayImagePreview(fileData) {
+  currentImagePath = fileData.path;
+  currentImageZoom = 1.0;
+
+  // Hide other views
+  document.getElementById("contentEmpty").classList.add("hidden");
+  document.getElementById("listView").classList.add("hidden");
+  document.getElementById("gridView").classList.add("hidden");
+  document.getElementById("editorView").classList.add("hidden");
+
+  // Switch toolbars - hide normal toolbar (like editor does)
+  document.getElementById("fileManagerToolbar").classList.add("hidden");
+
+  // Show image preview
+  const imagePreviewView = document.getElementById("imagePreviewView");
+  imagePreviewView.classList.remove("hidden");
+
+  // Update image info
+  document.getElementById("imagePreviewFileName").textContent = fileData.name;
+  document.getElementById("imagePreviewInfo").textContent = `${formatFileSize(fileData.size)}`;
+
+  // Load image
+  const img = document.getElementById("imagePreviewImg");
+  img.src = `/api/file/image?path=${encodeURIComponent(fileData.path)}`;
+  img.alt = fileData.name;
+  img.style.transform = "scale(1)";
+
+  // Update image info with dimensions after loading
+  img.onload = function() {
+    const info = document.getElementById("imagePreviewInfo");
+    info.textContent = `${formatFileSize(fileData.size)} • ${img.naturalWidth} × ${img.naturalHeight} px`;
+  };
+}
+
+/**
+ * Zoom image in
+ */
+function zoomImageIn() {
+  currentImageZoom = Math.min(currentImageZoom * 1.25, 5);
+  const img = document.getElementById("imagePreviewImg");
+  img.style.transform = `scale(${currentImageZoom})`;
+}
+
+/**
+ * Zoom image out
+ */
+function zoomImageOut() {
+  currentImageZoom = Math.max(currentImageZoom / 1.25, 0.25);
+  const img = document.getElementById("imagePreviewImg");
+  img.style.transform = `scale(${currentImageZoom})`;
+}
+
+/**
+ * Reset image zoom
+ */
+function resetImageZoom() {
+  currentImageZoom = 1.0;
+  const img = document.getElementById("imagePreviewImg");
+  img.style.transform = "scale(1)";
+}
+
+/**
+ * Download current image
+ */
+function downloadImage() {
+  if (!currentImagePath) return;
+
+  const link = document.createElement('a');
+  link.href = `/api/file/image?path=${encodeURIComponent(currentImagePath)}`;
+  link.download = currentImagePath.split('/').pop();
+  link.click();
+}
+
+/**
+ * Close image preview
+ */
+function closeImagePreview() {
+  // Clear URL parameters
+  const url = new URL(window.location);
+  url.searchParams.delete('action');
+  const currentPath = currentImagePath ? currentImagePath.substring(0, currentImagePath.lastIndexOf('/')) || '/' : '/';
+  url.searchParams.set('path', currentPath);
+  window.history.pushState({ path: currentPath }, '', url);
+
+  // Hide image preview
+  document.getElementById("imagePreviewView").classList.add("hidden");
+
+  // Switch toolbars back - show normal toolbar (like editor does)
+  document.getElementById("fileManagerToolbar").classList.remove("hidden");
+
+  // Show appropriate view
+  const listView = document.getElementById("listView");
+  const gridView = document.getElementById("gridView");
+
+  if (listView && listView.querySelector("tbody tr")) {
+    listView.classList.remove("hidden");
+  } else if (gridView && gridView.querySelector(".group")) {
+    gridView.classList.remove("hidden");
+  } else {
+    document.getElementById("contentEmpty").classList.remove("hidden");
+  }
+
+  currentImagePath = null;
+}

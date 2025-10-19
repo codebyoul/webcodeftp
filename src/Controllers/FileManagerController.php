@@ -609,4 +609,116 @@ class FileManagerController
         ]);
     }
 
+    /**
+     * Serve image file from FTP
+     */
+    public function getImage(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            http_response_code(401);
+            echo 'Unauthorized';
+            exit;
+        }
+
+        // Get file path from request
+        $path = $this->request->get('path', '');
+
+        if (empty($path)) {
+            http_response_code(400);
+            echo 'File path required';
+            exit;
+        }
+
+        // Get FTP credentials from session
+        $ftpHost = $this->session->get('ftp_host');
+        $ftpUsername = $this->session->get('ftp_username');
+        $ftpPassword = $this->session->get('ftp_password');
+
+        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
+            http_response_code(401);
+            echo 'FTP credentials not found';
+            exit;
+        }
+
+        try {
+            // Initialize FTP connection
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
+
+            // Connect to FTP server
+            $ftpConfig = $this->config['ftp']['server'];
+            $connectionResult = $ftp->connect(
+                $ftpConfig['host'],
+                $ftpConfig['port'],
+                $ftpUsername,
+                $ftpPassword,
+                $ftpConfig['use_ssl'],
+                $ftpConfig['passive_mode']
+            );
+
+            if (!$connectionResult['success']) {
+                http_response_code(500);
+                echo 'FTP connection failed';
+                exit;
+            }
+
+            // Sanitize path
+            $sanitizedPath = $security->sanitizePath($path);
+            if ($sanitizedPath === null) {
+                http_response_code(400);
+                echo 'Invalid path';
+                exit;
+            }
+
+            // Read file from FTP
+            $fileContent = $ftp->readFile($sanitizedPath);
+
+            // Disconnect
+            $ftp->disconnect();
+
+            if ($fileContent === false) {
+                http_response_code(404);
+                echo 'File not found';
+                exit;
+            }
+
+            // Determine MIME type from extension
+            $extension = strtolower(pathinfo($sanitizedPath, PATHINFO_EXTENSION));
+            $mimeTypes = [
+                'png' => 'image/png',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+                'webp' => 'image/webp',
+                'bmp' => 'image/bmp',
+                'ico' => 'image/x-icon',
+                'tiff' => 'image/tiff',
+                'tif' => 'image/tiff'
+            ];
+
+            $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+            // Set headers and output image
+            header('Content-Type: ' . $mimeType);
+            header('Content-Length: ' . strlen($fileContent));
+            header('Cache-Control: public, max-age=3600');
+            echo $fileContent;
+            exit;
+
+        } catch (\Exception $e) {
+            Logger::error('Image preview error', [
+                'path' => $path,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            http_response_code(500);
+            echo 'Error retrieving image: ' . $e->getMessage();
+            exit;
+        }
+    }
+
 }

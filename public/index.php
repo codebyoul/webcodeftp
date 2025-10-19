@@ -154,6 +154,11 @@ $router->get('/api/file/read', function () use ($config, $request, $response, $s
     $controller->readFile();
 });
 
+$router->get('/api/file/image', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->getImage();
+});
+
 $router->post('/api/file/write', function () use ($config, $request, $response, $session) {
     try {
         $controller = new FileManagerController($config, $request, $response, $session);
