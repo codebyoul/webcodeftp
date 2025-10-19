@@ -82,6 +82,7 @@ class FileManagerController
             'language_cookie_lifetime' => $this->config['localization']['language_cookie_lifetime'],
             'file_icons' => $this->config['file_icons'],
             'csrf_token' => $csrfToken,
+            'ssh_enabled' => $this->config['ssh']['enabled'] ?? false,
         ]);
     }
 

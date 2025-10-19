@@ -214,15 +214,20 @@
                                 <i class="fas fa-arrows-rotate"></i>
                             </button>
 
+                            <!-- SSH-based Operations (shown only when SSH is enabled) -->
+                            <?php if ($ssh_enabled ?? false): ?>
                             <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
 
-                            <!-- View Toggle -->
-                            <button id="viewToggleList" class="p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition" title="<?= t('list_view', 'List View') ?>">
-                                <i class="fas fa-list"></i>
+                            <button id="zipBtn" onclick="zipSelectedFiles()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('zip_files', 'Zip Selected Files') ?>">
+                                <i class="fas fa-file-zipper"></i>
                             </button>
-                            <button id="viewToggleGrid" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('grid_view', 'Grid View') ?>">
-                                <i class="fas fa-grip"></i>
+                            <button id="unzipBtn" onclick="unzipSelectedFile()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="<?= t('unzip_file', 'Unzip File') ?>" disabled>
+                                <i class="fas fa-file-archive"></i>
                             </button>
+                            <button id="moveBtn" onclick="moveSelectedFiles()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('move_files', 'Move Selected Files') ?>">
+                                <i class="fas fa-arrows-turn-to-dots"></i>
+                            </button>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Right: Path Navigation -->
@@ -374,7 +379,7 @@
                         <thead class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                                    <i class="fas fa-check-square text-base"></i>
+                                    <input type="checkbox" id="selectAllCheckbox" class="rounded border-gray-300 dark:border-gray-600 cursor-pointer" title="<?= t('select_all', 'Select All') ?>">
                                 </th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-primary-500 dark:hover:text-primary-400 transition" onclick="sortListView('name')">
                                     <div class="flex items-center gap-2">
@@ -408,42 +413,6 @@
                     </table>
                 </div>
 
-                <!-- Grid View -->
-                <div id="gridView" class="hidden p-6">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
-                        <!-- Sample Folder -->
-                        <div class="group p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md transition cursor-pointer">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-folder text-6xl text-yellow-500 mb-2"></i>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white text-center truncate w-full">composer</span>
-                            </div>
-                        </div>
-                        <div class="group p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md transition cursor-pointer">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-folder text-6xl text-yellow-500 mb-2"></i>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white text-center truncate w-full">.ssh</span>
-                            </div>
-                        </div>
-                        <div class="group p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md transition cursor-pointer">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-folder text-6xl text-yellow-500 mb-2"></i>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white text-center truncate w-full">backup</span>
-                            </div>
-                        </div>
-                        <div class="group p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md transition cursor-pointer">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-folder text-6xl text-yellow-500 mb-2"></i>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white text-center truncate w-full">web</span>
-                            </div>
-                        </div>
-                        <div class="group p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md transition cursor-pointer">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-file-pdf text-6xl text-red-500 mb-2"></i>
-                                <span class="text-sm font-medium text-gray-900 dark:text-white text-center truncate w-full">document.pdf</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </main>
         </div>

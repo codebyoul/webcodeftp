@@ -2,33 +2,107 @@
 // Handles file operations, UI interactions, and file browser logic
 
 /**
- * Preview/Edit file using integrated editor or image preview
+ * ============================================================================
+ * URL-BASED NAVIGATION SYSTEM
+ * The URL is the SINGLE SOURCE OF TRUTH
+ * ============================================================================
+ */
+
+/**
+ * Navigate to a path by updating the URL
+ * This is the ONLY way to navigate - all navigation goes through this function
+ */
+function navigateTo(path, action = null) {
+  const url = new URL(window.location);
+  url.searchParams.set('path', path);
+
+  if (action) {
+    url.searchParams.set('action', action);
+  } else {
+    url.searchParams.delete('action');
+  }
+
+  window.history.pushState({ path, action }, '', url);
+
+  // Dispatch custom event for URL change
+  window.dispatchEvent(new CustomEvent('urlchange'));
+}
+
+/**
+ * Handle URL changes - this is called when:
+ * - Page loads (DOMContentLoaded)
+ * - User clicks back/forward (popstate)
+ * - navigateTo() is called
+ */
+function handleUrlChange() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const path = urlParams.get('path') || '/';
+  const action = urlParams.get('action');
+
+  // ALWAYS sync tree first
+  if (typeof highlightCurrentPath === 'function') {
+    highlightCurrentPath(path);
+  }
+
+  // Determine what to show based on path and action
+  const isFile = path.includes('.') && !path.endsWith('/');
+
+  if (isFile) {
+    // It's a FILE
+    const folderPath = path.substring(0, path.lastIndexOf('/')) || '/';
+
+    // Check if we need to load folder contents
+    // If we're opening editor, we don't need to load the folder list
+    if (action === 'edit') {
+      // Just open the editor directly - no need to load folder contents
+      openIntegratedEditor(path);
+    } else {
+      // For image preview or file info, we need the file data from folder contents
+      loadFolderContents(folderPath, (data) => {
+        if (!data || !data.success) {
+          displayPathNotFound(path);
+          return;
+        }
+
+        const fileData = (data.files || []).find(f => f.path === path);
+
+        if (!fileData) {
+          displayFileNotFound(path);
+          return;
+        }
+
+        if (isImageFile(fileData.name)) {
+          displayImagePreview(fileData);
+        } else {
+          displaySelectedFile(fileData);
+        }
+      });
+    }
+  } else {
+    // It's a FOLDER
+    loadFolderContents(path, (data) => {
+      if (!data || !data.success) {
+        displayPathNotFound(path);
+      }
+    });
+  }
+}
+
+/**
+ * Preview/Edit file - now just updates URL
  */
 function previewFile(path) {
-  // Check if it's an image file
+  closeAllPreviews();
+
+  // Check if it's an image or code file
   const filename = path.split('/').pop();
+
   if (isImageFile(filename)) {
-    // Get file data from current context and show image preview
-    // We need to fetch the file data to get size and other details
-    fetch(`/api/folder-contents?path=${encodeURIComponent(path.substring(0, path.lastIndexOf('/')) || '/')}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Find the file in the returned data
-          const file = data.files.find(f => f.path === path);
-          if (file) {
-            displayImagePreview(file);
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error loading file data:', error);
-      });
+    // Navigate without action (will show image preview)
+    navigateTo(path);
   } else {
-    // Use integrated editor for code files
-    if (typeof openIntegratedEditor === 'function') {
-      openIntegratedEditor(path, true);
-    }
+    // Navigate with edit action (will open editor)
+    navigateTo(path, 'edit');
   }
 }
 
@@ -125,26 +199,59 @@ function updateSortIcons(activeColumn, direction) {
  * Refresh current folder contents
  */
 function refreshCurrentFolder() {
-  // Get current path from input
-  const pathInput = document.getElementById("pathInput");
-  const currentPath = pathInput ? pathInput.value : "/";
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentPath = urlParams.get('path') || '/';
 
-  // Show visual feedback - spin the refresh icon
   const refreshBtn = document.getElementById("refreshBtn");
   const icon = refreshBtn.querySelector("i");
   icon.classList.add("fa-spin");
 
-  // Store the loadFolderContents function reference
-  if (window.loadFolderContents) {
-    window.loadFolderContents(currentPath);
+  // Re-trigger URL handler to refresh content
+  handleUrlChange();
 
-    // Stop spinning after 1 second
-    setTimeout(() => {
-      icon.classList.remove("fa-spin");
-    }, 1000);
-  } else {
-    // If function not available yet, remove spin immediately
+  setTimeout(() => {
     icon.classList.remove("fa-spin");
+  }, 1000);
+}
+
+// =================================================================
+// VIEW MANAGEMENT - PROFESSIONAL & REUSABLE
+// =================================================================
+
+/**
+ * Close all previews and editors (professional utility function)
+ *
+ * This ensures clean navigation - when user navigates to a folder,
+ * any open previews/editors are automatically closed.
+ *
+ * Closes:
+ * - Image preview
+ * - Code editor
+ * - Any future preview types
+ *
+ * Robust: Always ensures elements are hidden, regardless of current state
+ */
+function closeAllPreviews() {
+  // Close image preview (always ensure it's hidden)
+  const imagePreviewView = document.getElementById("imagePreviewView");
+  if (imagePreviewView) {
+    imagePreviewView.classList.add("hidden");
+  }
+
+  // Close code editor (always ensure it's hidden)
+  const editorView = document.getElementById("editorView");
+  if (editorView) {
+    editorView.classList.add("hidden");
+  }
+
+  // Restore file manager toolbar (always ensure correct state)
+  const editorToolbar = document.getElementById("editorToolbar");
+  const fileManagerToolbar = document.getElementById("fileManagerToolbar");
+  if (editorToolbar) {
+    editorToolbar.classList.add("hidden");
+  }
+  if (fileManagerToolbar) {
+    fileManagerToolbar.classList.remove("hidden");
   }
 }
 
@@ -152,51 +259,229 @@ function refreshCurrentFolder() {
 // FILE SELECTION AND ACTIONS
 // =================================================================
 
-// Global variable to track selected file
-window.selectedFile = null;
+// Global selection state management
+// Two distinct types of selection:
+// 1. Checkbox Selection (multi-select for operations) - stored in Set
+// 2. Navigation Focus (single-select for preview) - stored as single item
+window.checkedItems = new Set(); // Paths of checkbox-selected items (persists across views)
+window.focusedItem = null;       // Path of navigation-focused item (clears on view switch)
+window.selectedFiles = [];       // Legacy compatibility - synced with checkedItems
 
 /**
- * Handle file/folder selection
+ * Handle file/folder selection (multi-select support)
  */
 function selectItem(path, name, type, extension) {
+  // For single-select compatibility
   window.selectedFile = {
     path: path,
     name: name,
     type: type,
     extension: extension,
   };
+
+  // Check if already selected
+  const existingIndex = window.selectedFiles.findIndex(f => f.path === path);
+
+  if (existingIndex === -1) {
+    // Add to selection
+    window.selectedFiles.push({
+      path: path,
+      name: name,
+      type: type,
+      extension: extension,
+    });
+  }
+
+  // Update unzip button state based on selection
+  updateUnzipButtonState();
 }
 
 /**
- * Clear file selection
+ * Deselect a specific item
+ */
+function deselectItem(path) {
+  window.selectedFiles = window.selectedFiles.filter(f => f.path !== path);
+
+  // Clear single selection if it matches
+  if (window.selectedFile && window.selectedFile.path === path) {
+    window.selectedFile = null;
+  }
+
+  // Update unzip button state
+  updateUnzipButtonState();
+}
+
+/**
+ * Add item to checkbox selection (blue highlight)
+ */
+function checkboxSelectItem(path, name, type, extension) {
+  window.checkedItems.add(path);
+
+  // Legacy compatibility
+  const existingIndex = window.selectedFiles.findIndex(f => f.path === path);
+  if (existingIndex === -1) {
+    window.selectedFiles.push({ path, name, type, extension });
+  }
+  window.selectedFile = { path, name, type, extension };
+
+  updateUnzipButtonState();
+}
+
+/**
+ * Remove item from checkbox selection
+ */
+function checkboxDeselectItem(path) {
+  window.checkedItems.delete(path);
+
+  // Legacy compatibility
+  window.selectedFiles = window.selectedFiles.filter(f => f.path !== path);
+  if (window.selectedFile && window.selectedFile.path === path) {
+    window.selectedFile = null;
+  }
+
+  updateUnzipButtonState();
+}
+
+/**
+ * Set navigation focus (gray highlight)
+ */
+function setNavigationFocus(path) {
+  // Clear previous focus visual
+  clearNavigationFocus();
+
+  // Set new focus
+  window.focusedItem = path;
+}
+
+/**
+ * Clear navigation focus
+ */
+function clearNavigationFocus() {
+  // Remove navigation focus from all items
+  document.querySelectorAll('.navigation-focused').forEach(el => {
+    el.classList.remove('navigation-focused', 'bg-gray-100', 'dark:bg-gray-700/50');
+  });
+
+  window.focusedItem = null;
+}
+
+/**
+ * Update Select All checkbox state (checked/unchecked/indeterminate)
+ */
+function updateSelectAllCheckboxState() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const listCheckboxes = Array.from(document.querySelectorAll('#listViewBody input[type="checkbox"]'));
+
+  if (!selectAllCheckbox) return;
+
+  if (listCheckboxes.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+    return;
+  }
+
+  const checkedCount = listCheckboxes.filter(cb => cb.checked).length;
+
+  if (checkedCount === 0) {
+    // None checked
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (checkedCount === listCheckboxes.length) {
+    // All checked
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else {
+    // Some checked (indeterminate)
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  }
+}
+
+/**
+ * Clear all checkbox selections
  */
 function clearSelection() {
   window.selectedFile = null;
+  window.selectedFiles = [];
+  window.checkedItems.clear();
 
-  // Uncheck all checkboxes
-  document.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+  // Uncheck all file checkboxes (except select-all)
+  document.querySelectorAll('input[type="checkbox"]:not(#selectAllCheckbox)').forEach((cb) => {
     cb.checked = false;
   });
 
-  // Remove visual selection from grid cards
-  document.querySelectorAll(".file-card-selected").forEach((c) => {
-    c.classList.remove(
-      "file-card-selected",
-      "border-primary-600",
+  // Uncheck select-all checkbox
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+
+  // Remove checkbox selection visual from grid cards
+  document.querySelectorAll(".checkbox-selected").forEach((el) => {
+    el.classList.remove(
+      "checkbox-selected",
+      "border-primary-500",
       "dark:border-primary-400",
-      "bg-primary-50",
-      "dark:bg-primary-900/20"
+      "bg-primary-100",
+      "dark:bg-primary-900/30"
     );
   });
 
-  // Remove visual selection from list rows
-  document.querySelectorAll(".file-row-selected").forEach((r) => {
-    r.classList.remove(
-      "file-row-selected",
-      "bg-primary-50",
-      "dark:bg-primary-900/20"
-    );
+  // Clear navigation focus
+  clearNavigationFocus();
+
+  // Update unzip button state
+  updateUnzipButtonState();
+}
+
+/**
+ * Update unzip button state (enabled only if exactly 1 zip file is selected)
+ */
+function updateUnzipButtonState() {
+  const unzipBtn = document.getElementById('unzipBtn');
+  if (!unzipBtn) return; // SSH not enabled
+
+  const zipExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'tgz', 'xz'];
+
+  // Enable if exactly 1 file selected and it's a zip format
+  if (window.selectedFiles.length === 1) {
+    const selectedFile = window.selectedFiles[0];
+    const isZipFile = zipExtensions.includes(selectedFile.extension.toLowerCase());
+
+    if (isZipFile) {
+      unzipBtn.disabled = false;
+      unzipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      unzipBtn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    } else {
+      unzipBtn.disabled = true;
+      unzipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      unzipBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    }
+  } else {
+    // Disable if 0 or more than 1 file selected
+    unzipBtn.disabled = true;
+    unzipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    unzipBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+  }
+}
+
+/**
+ * Select all files in current view
+ */
+function selectAllFiles() {
+  const checkboxes = document.querySelectorAll('#listViewBody input[type="checkbox"]');
+  checkboxes.forEach(cb => {
+    cb.checked = true;
+    cb.dispatchEvent(new Event('change'));
   });
+}
+
+/**
+ * Deselect all files in current view
+ */
+function deselectAllFiles() {
+  clearSelection();
 }
 
 /**
@@ -256,6 +541,26 @@ document.addEventListener("DOMContentLoaded", function () {
       profileDropdown.classList.add("hidden");
     }
   });
+
+  // Select All Checkbox Handler
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener("change", function() {
+      if (this.checked) {
+        // Select all items in list view
+        const listCheckboxes = document.querySelectorAll('#listViewBody input[type="checkbox"]');
+        listCheckboxes.forEach(cb => {
+          if (!cb.checked) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change'));
+          }
+        });
+      } else {
+        // Deselect all files
+        clearSelection();
+      }
+    });
+  }
 
   // Dynamic Folder Tree Management
   const folderTree = document.getElementById("folderTree");
@@ -358,10 +663,10 @@ document.addEventListener("DOMContentLoaded", function () {
       // Click handler for folders
       button.addEventListener("click", function (e) {
 
-        // Load folder contents in main area (updates URL, highlights folder, and loads content)
-        loadFolderContents(item.path);
+        // Navigate to folder
+        navigateTo(item.path);
 
-        // Toggle folder expand/collapse in sidebar (independent of highlighting)
+        // Toggle folder expand/collapse in sidebar
         toggleFolder(item.path, arrow, childrenContainer, level);
 
         e.stopPropagation();
@@ -501,40 +806,11 @@ document.addEventListener("DOMContentLoaded", function () {
     loadFolderTree();
   });
 
-  // Initial load - load tree first, then initialize from URL
+  // Initial load - load tree first, then handle URL
   loadFolderTree("/", function() {
-    initializeFromUrl();
+    handleUrlChange();
   });
 
-  // View Toggle (List/Grid)
-  const viewToggleList = document.getElementById("viewToggleList");
-  const viewToggleGrid = document.getElementById("viewToggleGrid");
-  const listView = document.getElementById("listView");
-  const gridView = document.getElementById("gridView");
-
-  viewToggleList.addEventListener("click", function () {
-    // Show list view
-    listView.classList.remove("hidden");
-    gridView.classList.add("hidden");
-
-    // Update button states
-    viewToggleList.className =
-      "p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition";
-    viewToggleGrid.className =
-      "p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition";
-  });
-
-  viewToggleGrid.addEventListener("click", function () {
-    // Show grid view
-    listView.classList.add("hidden");
-    gridView.classList.remove("hidden");
-
-    // Update button states
-    viewToggleGrid.className =
-      "p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition";
-    viewToggleList.className =
-      "p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition";
-  });
 
   // Sidebar Resize Functionality
   const sidebar = document.getElementById("sidebar");
@@ -592,43 +868,26 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   /**
-   * Load folder contents in main content area
+   * Load folder contents - INTERNAL USE ONLY
+   * Use navigateTo() for navigation
    */
-  function loadFolderContents(path, updateUrl = true, onComplete = null) {
-
-    // Clear any file selection when loading new folder
+  function loadFolderContents(path, onComplete = null) {
+    closeAllPreviews();
     clearSelection();
 
-    // Update URL with current path (for shareable links)
-    if (updateUrl) {
-      const url = new URL(window.location);
-      url.searchParams.set('path', path);
-      window.history.pushState({ path: path }, '', url);
-    }
-
-    // Get container elements
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    const gridView = document.getElementById("gridView");
 
     // Show loading state
     if (contentEmpty) contentEmpty.classList.add("hidden");
     if (contentLoading) contentLoading.classList.remove("hidden");
     listView.classList.add("hidden");
-    gridView.classList.add("hidden");
 
     // Update path input
     const pathInput = document.getElementById("pathInput");
     if (pathInput) {
       pathInput.value = path;
-    }
-
-    // Only highlight if we're updating the URL (user-initiated navigation)
-    // Skip highlighting on initial load to avoid duplicate calls
-    // Pass expandParents = false because folder clicks handle their own expansion via toggleFolder
-    if (updateUrl) {
-      highlightCurrentPath(path, false);
     }
 
     // Fetch folder contents
@@ -639,19 +898,11 @@ document.addEventListener("DOMContentLoaded", function () {
         if (contentLoading) contentLoading.classList.add("hidden");
 
         if (data.success) {
-          // Render contents in BOTH views
-          renderEliteGrid(data.folders, data.files, path);
+          // Render contents in list view
           renderListView(data.folders, data.files, path);
 
-          // Show the appropriate view based on user preference
-          const currentView = localStorage.getItem("fileManagerView") || "list";
-          if (currentView === "list") {
-            listView.classList.remove("hidden");
-            gridView.classList.add("hidden");
-          } else {
-            gridView.classList.remove("hidden");
-            listView.classList.add("hidden");
-          }
+          // Show list view
+          listView.classList.remove("hidden");
 
           // Call the callback when content is loaded
           if (onComplete) {
@@ -685,134 +936,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Make loadFolderContents globally accessible for refresh button
   window.loadFolderContents = loadFolderContents;
-
-  /**
-   * Render folder/file contents in elite grid design
-   */
-  function renderEliteGrid(folders, files, currentPath) {
-    const gridView = document.getElementById("gridView");
-
-    // Create elite grid container
-    gridView.innerHTML =
-      '<div class="p-6"><div id="eliteGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5"></div></div>';
-
-    const eliteGrid = document.getElementById("eliteGrid");
-
-    // Render folders first
-    folders.forEach((folder) => {
-      const card = createEliteCard(folder, "folder", currentPath);
-      eliteGrid.appendChild(card);
-    });
-
-    // Render files
-    files.forEach((file) => {
-      const card = createEliteCard(file, "file", currentPath);
-      eliteGrid.appendChild(card);
-    });
-
-    // If empty
-    if (folders.length === 0 && files.length === 0) {
-      eliteGrid.innerHTML =
-        '<div class="col-span-full text-center py-16"><i class="fas fa-folder-open text-gray-300 dark:text-gray-600 text-6xl mb-4"></i><p class="text-gray-500 dark:text-gray-400">This folder is empty</p></div>';
-    }
-  }
-
-  /**
-   * Create elite card for folder or file
-   */
-  function createEliteCard(item, type, currentPath) {
-    const card = document.createElement("div");
-    card.className =
-      "group relative bg-white dark:bg-gray-800 rounded-xl p-5 border-2 border-gray-200 dark:border-gray-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-2xl hover:scale-105 transform transition-all duration-300 cursor-pointer";
-    card.dataset.path = item.path;
-    card.dataset.type = type;
-
-    // Add click handler (single click)
-    card.addEventListener("click", function (e) {
-      if (type === "folder") {
-        loadFolderContents(item.path);
-        clearSelection();
-      } else {
-        // Select file and update extract button
-        const extension = item.name.split(".").pop().toLowerCase();
-        selectItem(item.path, item.name, type, extension);
-
-        // Remove selection from all other cards
-        document.querySelectorAll(".file-card-selected").forEach((c) => {
-          c.classList.remove(
-            "file-card-selected",
-            "border-primary-600",
-            "dark:border-primary-400",
-            "bg-primary-50",
-            "dark:bg-primary-900/20"
-          );
-        });
-
-        // Add selection to this card
-        card.classList.add(
-          "file-card-selected",
-          "border-primary-600",
-          "dark:border-primary-400",
-          "bg-primary-50",
-          "dark:bg-primary-900/20"
-        );
-
-        // Show file details
-        displaySelectedFile(item);
-      }
-    });
-
-    // Add double-click handler (professional behavior)
-    card.addEventListener("dblclick", function (e) {
-      if (type === "folder") {
-        // Double-click folder = open it (same as single click for folders)
-        loadFolderContents(item.path);
-        clearSelection();
-      } else {
-        // Double-click file = edit/preview it
-        previewFile(item.path);
-      }
-    });
-
-    // Icon container
-    const iconContainer = document.createElement("div");
-    iconContainer.className = "flex flex-col items-center";
-
-    // Icon
-    const icon = document.createElement("i");
-    if (type === "folder") {
-      icon.className =
-        "fas fa-folder text-5xl text-yellow-500 dark:text-yellow-400 mb-4 group-hover:scale-110 transition-transform duration-300";
-    } else {
-      icon.className =
-        getFileIcon(item.name).replace(/text-\w+/g, "text-5xl") +
-        " mb-4 group-hover:scale-110 transition-transform duration-300";
-    }
-    iconContainer.appendChild(icon);
-
-    // Name
-    const name = document.createElement("div");
-    name.className = "text-center w-full";
-    const nameSpan = document.createElement("span");
-    nameSpan.className =
-      "text-sm font-medium text-gray-900 dark:text-white block truncate px-2";
-    nameSpan.textContent = item.name;
-    nameSpan.title = item.name; // Tooltip for full name
-    name.appendChild(nameSpan);
-
-    // Size (for files only)
-    if (type === "file" && item.size) {
-      const size = document.createElement("span");
-      size.className = "text-xs text-gray-500 dark:text-gray-400 mt-1 block";
-      size.textContent = formatFileSize(item.size);
-      name.appendChild(size);
-    }
-
-    iconContainer.appendChild(name);
-    card.appendChild(iconContainer);
-
-    return card;
-  }
 
   /**
    * Format file size to human readable format
@@ -856,25 +979,17 @@ document.addEventListener("DOMContentLoaded", function () {
    * Display selected file in main content area
    */
   function displaySelectedFile(file) {
-    // Update URL with file path (without action=edit)
-    const url = new URL(window.location);
-    url.searchParams.set('path', file.path);
-    url.searchParams.delete('action'); // Remove action parameter
-    window.history.pushState({ path: file.path }, '', url);
-
-    // Highlight file in sidebar
-    highlightCurrentPath(file.path);
+    // Close any open previews (image preview or code editor)
+    closeAllPreviews();
 
     // Get container elements
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    const gridView = document.getElementById("gridView");
 
     // Hide all other views
     if (contentLoading) contentLoading.classList.add("hidden");
     listView.classList.add("hidden");
-    gridView.classList.add("hidden");
 
     // Update path input with file path
     const pathInput = document.getElementById("pathInput");
@@ -974,11 +1089,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    const gridView = document.getElementById("gridView");
+    
 
     if (contentLoading) contentLoading.classList.add("hidden");
     listView.classList.add("hidden");
-    gridView.classList.add("hidden");
+    
 
     // Get filename and extension
     const fileName = path.substring(path.lastIndexOf('/') + 1);
@@ -1037,11 +1152,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    const gridView = document.getElementById("gridView");
+    
 
     if (contentLoading) contentLoading.classList.add("hidden");
     listView.classList.add("hidden");
-    gridView.classList.add("hidden");
+    
 
     // Determine if it's a file or folder based on extension
     const isFile = path.includes('.') && !path.endsWith('/');
@@ -1143,64 +1258,58 @@ document.addEventListener("DOMContentLoaded", function () {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "rounded border-gray-300 dark:border-gray-600";
+
+    // Check if this item is already in checkbox selection
+    if (window.checkedItems.has(item.path)) {
+      checkbox.checked = true;
+      row.classList.add(
+        "checkbox-selected",
+        "bg-primary-100",
+        "dark:bg-primary-900/30"
+      );
+    }
+
     checkboxCell.appendChild(checkbox);
     row.appendChild(checkboxCell);
 
-    // Checkbox change handler
+    const extension = item.name.split(".").pop().toLowerCase();
+
+    // Checkbox change handler (checkbox selection only)
     checkbox.addEventListener("change", function (e) {
       e.stopPropagation();
 
       if (checkbox.checked) {
-        // Uncheck all other checkboxes
-        document.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-          if (cb !== checkbox) cb.checked = false;
-        });
-
-        // Select this file
-        const extension = item.name.split(".").pop().toLowerCase();
-        selectItem(item.path, item.name, type, extension);
-
-        // Remove selection from all other rows
-        document.querySelectorAll(".file-row-selected").forEach((r) => {
-          r.classList.remove(
-            "file-row-selected",
-            "bg-primary-50",
-            "dark:bg-primary-900/20"
-          );
-        });
-
-        // Add selection to this row
+        // Add to checkbox selection (blue highlight)
+        checkboxSelectItem(item.path, item.name, type, extension);
         row.classList.add(
-          "file-row-selected",
-          "bg-primary-50",
-          "dark:bg-primary-900/20"
+          "checkbox-selected",
+          "bg-primary-100",
+          "dark:bg-primary-900/30"
         );
       } else {
-        // Deselect
-        clearSelection();
+        // Remove from checkbox selection
+        checkboxDeselectItem(item.path);
         row.classList.remove(
-          "file-row-selected",
-          "bg-primary-50",
-          "dark:bg-primary-900/20"
+          "checkbox-selected",
+          "bg-primary-100",
+          "dark:bg-primary-900/30"
         );
       }
+
+      // Update Select All checkbox state
+      updateSelectAllCheckboxState();
     });
 
-    // Row click handler (single click)
+    // Row click handler (navigation focus only - NO checkbox toggle)
     row.addEventListener("click", function (e) {
       // If clicking on the checkbox cell, let the checkbox handler deal with it
       if (e.target === checkbox || e.target === checkboxCell) {
         return;
       }
 
-      if (type === "folder") {
-        loadFolderContents(item.path);
-        clearSelection();
-      } else {
-        // Toggle checkbox when clicking row
-        checkbox.checked = !checkbox.checked;
-        checkbox.dispatchEvent(new Event("change"));
-      }
+      // Set navigation focus (gray highlight)
+      setNavigationFocus(item.path);
+      row.classList.add("navigation-focused", "bg-gray-100", "dark:bg-gray-700/50");
     });
 
     // Row double-click handler (professional behavior)
@@ -1211,11 +1320,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (type === "folder") {
-        // Double-click folder = open it (same as single click for folders)
-        loadFolderContents(item.path);
-        clearSelection();
+        navigateTo(item.path);
       } else {
-        // Double-click file = edit/preview it
         previewFile(item.path);
       }
     });
@@ -1274,83 +1380,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return row;
   }
 
-  /**
-   * Switch between grid and list view
-   */
-  function switchView(viewType) {
-    const listView = document.getElementById("listView");
-    const gridView = document.getElementById("gridView");
-    const contentEmpty = document.getElementById("contentEmpty");
-    const listBtn = document.getElementById("viewToggleList");
-    const gridBtn = document.getElementById("viewToggleGrid");
-
-    if (viewType === "list") {
-      // Check if list view has content
-      const listBody = document.getElementById("listViewBody");
-      if (listBody && listBody.children.length > 0) {
-        // Show list view
-        listView.classList.remove("hidden");
-        gridView.classList.add("hidden");
-        if (contentEmpty) contentEmpty.classList.add("hidden");
-      }
-
-      // Update button states
-      listBtn.className =
-        "p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition";
-      gridBtn.className =
-        "p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition";
-
-      // Save preference
-      localStorage.setItem("fileManagerView", "list");
-    } else {
-      // Check if grid view has content
-      const eliteGrid = document.getElementById("eliteGrid");
-      if (eliteGrid) {
-        // Show grid view
-        gridView.classList.remove("hidden");
-        listView.classList.add("hidden");
-        if (contentEmpty) contentEmpty.classList.add("hidden");
-      }
-
-      // Update button states
-      gridBtn.className =
-        "p-2 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 rounded transition";
-      listBtn.className =
-        "p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition";
-
-      // Save preference
-      localStorage.setItem("fileManagerView", "grid");
-    }
-  }
-
-  /**
-   * Initialize view from localStorage
-   */
-  function initializeView() {
-    const savedView = localStorage.getItem("fileManagerView") || "list";
-    switchView(savedView);
-  }
-
-  /**
-   * Setup view toggle buttons
-   */
-  const listToggleBtn = document.getElementById("viewToggleList");
-  const gridToggleBtn = document.getElementById("viewToggleGrid");
-
-  if (listToggleBtn) {
-    listToggleBtn.addEventListener("click", function () {
-      switchView("list");
-    });
-  }
-
-  if (gridToggleBtn) {
-    gridToggleBtn.addEventListener("click", function () {
-      switchView("grid");
-    });
-  }
-
-  // Initialize view on page load
-  initializeView();
 
   /**
    * Escape HTML to prevent XSS
@@ -1364,8 +1393,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /**
    * Highlight current path in sidebar tree
    */
-  function highlightCurrentPath(path, expandParents = true) {
-
+  window.highlightCurrentPath = function(path, expandParents = true) {
     // If we need to expand parents, do it FIRST, then highlight
     if (expandParents) {
       expandParentFolders(path, () => {
@@ -1376,20 +1404,18 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Remove previous highlights
-    document.querySelectorAll('.sidebar-tree-item-active').forEach(el => {
+    const previousHighlights = document.querySelectorAll('.sidebar-tree-item-active');
+    previousHighlights.forEach(el => {
       el.classList.remove('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
     });
 
     // Find and highlight the current path
     const sidebarItems = document.querySelectorAll('[data-path]');
 
-    let found = false;
     sidebarItems.forEach(item => {
       const itemPath = item.getAttribute('data-path');
 
       if (itemPath === path) {
-        found = true;
-
         // Add highlight to the button inside the item, not the container
         const button = item.querySelector('button');
         if (button) {
@@ -1403,9 +1429,6 @@ document.addEventListener("DOMContentLoaded", function () {
         item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
-
-    if (!found) {
-    }
   }
 
   /**
@@ -1463,104 +1486,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /**
-   * Handle browser back/forward buttons
-   */
-  window.addEventListener('popstate', function(event) {
-    if (event.state && event.state.path) {
-      if (event.state.action === 'edit') {
-        // Reopen file in editor (don't update URL - we're navigating via browser buttons)
-        if (typeof openIntegratedEditor === 'function') {
-          openIntegratedEditor(event.state.path, false);
-        }
-      } else {
-        // Check if it's a file or folder
-        const isFile = event.state.path.includes('.') && !event.state.path.endsWith('/');
-
-        if (isFile) {
-          // Show file info
-          const fileName = event.state.path.substring(event.state.path.lastIndexOf('/') + 1);
-          const file = { name: fileName, path: event.state.path, type: 'file' };
-          const folderPath = event.state.path.substring(0, event.state.path.lastIndexOf('/')) || '/';
-          loadFolderContents(folderPath, false);
-          setTimeout(() => {
-            const urlBackup = window.location.href;
-            displaySelectedFile(file);
-            window.history.replaceState({ path: event.state.path }, '', urlBackup);
-          }, 500);
-        } else {
-          // Reload folder without updating URL
-          loadFolderContents(event.state.path, false);
-        }
-      }
-    }
-  });
-
-  /**
-   * Initialize from URL on page load
-   */
-  function initializeFromUrl() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const path = urlParams.get('path');
-    const action = urlParams.get('action');
-
-
-    if (path) {
-      // Determine if path is a file or folder (check for extension)
-      const isFile = path.includes('.') && !path.endsWith('/');
-
-      if (isFile) {
-        // It's a FILE - load parent folder WITHOUT updating URL
-        const folderPath = path.substring(0, path.lastIndexOf('/')) || '/';
-
-        // Load parent folder but DON'T update URL (file path stays in URL)
-        loadFolderContents(folderPath, false, (data) => {
-          if (!data || !data.success) {
-            // Parent folder doesn't exist - expand tree as far as possible and show error
-            highlightCurrentPath(path); // This will expand as far as it can
-            displayPathNotFound(path);
-            return;
-          }
-
-          // Parent folder exists - check if file exists
-          const allFiles = data.files || [];
-          const fileData = allFiles.find(f => f.path === path);
-
-          if (fileData) {
-            // File EXISTS! Show it normally
-            highlightCurrentPath(path);
-
-            if (action === 'edit') {
-              if (typeof openIntegratedEditor === 'function') {
-                openIntegratedEditor(path, false);
-              }
-            } else {
-              displaySelectedFile(fileData);
-            }
-          } else {
-            // File NOT found - but still expand the tree to show the path
-            highlightCurrentPath(path); // Expand all parent folders
-            displayFileNotFound(path);
-          }
-        });
-      } else {
-        // It's a FOLDER - just load it (let sidebar handle opening parent folders)
-
-        loadFolderContents(path, true, (data) => {
-
-          if (data && data.success) {
-            // Folder exists
-          } else {
-            // Folder doesn't exist - expand tree as far as possible and show error
-            highlightCurrentPath(path); // This will expand as far as it can
-            displayPathNotFound(path);
-          }
-        });
-      }
-    }
-  }
-
-  // Note: initializeFromUrl is now called after tree loads (see line 487)
+  // Note: handleUrlChange is called after tree loads
+  // Note: popstate listener is at the end of file (global scope)
 
   /**
    * Path input navigation - when user types a path and presses Enter
@@ -1581,13 +1508,8 @@ document.addEventListener("DOMContentLoaded", function () {
         // Normalize path (ensure it starts with /)
         const normalizedPath = inputPath.startsWith('/') ? inputPath : '/' + inputPath;
 
-        // Update URL - this is the single source of truth!
-        const url = new URL(window.location);
-        url.searchParams.set('path', normalizedPath);
-        window.history.pushState({ path: normalizedPath }, '', url);
-
-        // Re-initialize from URL - this handles everything (folders, files, tree expansion, etc.)
-        initializeFromUrl();
+        // Navigate to path - URL is the single source of truth!
+        navigateTo(normalizedPath);
       }
     });
   }
@@ -1633,7 +1555,7 @@ function displayImagePreview(fileData) {
   // Hide other views
   document.getElementById("contentEmpty").classList.add("hidden");
   document.getElementById("listView").classList.add("hidden");
-  document.getElementById("gridView").classList.add("hidden");
+  
   document.getElementById("editorView").classList.add("hidden");
 
   // Switch toolbars - hide normal toolbar (like editor does)
@@ -1643,21 +1565,78 @@ function displayImagePreview(fileData) {
   const imagePreviewView = document.getElementById("imagePreviewView");
   imagePreviewView.classList.remove("hidden");
 
-  // Update image info
+  // Update image info immediately
   document.getElementById("imagePreviewFileName").textContent = fileData.name;
-  document.getElementById("imagePreviewInfo").textContent = `${formatFileSize(fileData.size)}`;
+  document.getElementById("imagePreviewInfo").textContent = `${formatFileSize(fileData.size)} • Loading...`;
 
-  // Load image
+  // Get image container and show loading state
   const img = document.getElementById("imagePreviewImg");
-  img.src = `/api/file/image?path=${encodeURIComponent(fileData.path)}`;
-  img.alt = fileData.name;
+  const imageContainer = img.parentElement;
+
+  // Create loading overlay
+  const loadingOverlay = document.createElement('div');
+  loadingOverlay.id = 'imageLoadingOverlay';
+  loadingOverlay.className = 'absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 z-10';
+  loadingOverlay.innerHTML = `
+    <div class="flex flex-col items-center space-y-4">
+      <!-- Elegant spinner -->
+      <div class="relative">
+        <div class="w-12 h-12 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+        <div class="absolute top-0 left-0 w-12 h-12 border-4 border-primary-500 dark:border-primary-400 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+      <!-- Loading text -->
+      <p class="text-sm text-gray-600 dark:text-gray-400 animate-pulse">Loading image...</p>
+    </div>
+  `;
+
+  // Remove any existing loading overlay
+  const existingOverlay = document.getElementById('imageLoadingOverlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+
+  // Add loading overlay
+  imageContainer.style.position = 'relative';
+  imageContainer.appendChild(loadingOverlay);
+
+  // Clear previous image immediately to prevent showing old content
+  img.src = '';
   img.style.transform = "scale(1)";
 
-  // Update image info with dimensions after loading
+  // Load new image
   img.onload = function() {
+    // Remove loading overlay
+    const overlay = document.getElementById('imageLoadingOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+
+    // Update info with dimensions
     const info = document.getElementById("imagePreviewInfo");
     info.textContent = `${formatFileSize(fileData.size)} • ${img.naturalWidth} × ${img.naturalHeight} px`;
   };
+
+  img.onerror = function() {
+    // Remove loading overlay
+    const overlay = document.getElementById('imageLoadingOverlay');
+    if (overlay) {
+      overlay.remove();
+    }
+
+    // Show error message
+    imageContainer.innerHTML = `
+      <div class="flex items-center justify-center h-full">
+        <div class="text-center space-y-3">
+          <i class="fas fa-exclamation-triangle text-5xl text-red-500"></i>
+          <p class="text-gray-600 dark:text-gray-400">Failed to load image</p>
+        </div>
+      </div>
+    `;
+  };
+
+  // Set image source (triggers loading)
+  img.src = `/api/file/image?path=${encodeURIComponent(fileData.path)}`;
+  img.alt = fileData.name;
 }
 
 /**
@@ -1703,30 +1682,107 @@ function downloadImage() {
  * Close image preview
  */
 function closeImagePreview() {
-  // Clear URL parameters
-  const url = new URL(window.location);
-  url.searchParams.delete('action');
-  const currentPath = currentImagePath ? currentImagePath.substring(0, currentImagePath.lastIndexOf('/')) || '/' : '/';
-  url.searchParams.set('path', currentPath);
-  window.history.pushState({ path: currentPath }, '', url);
-
   // Hide image preview
   document.getElementById("imagePreviewView").classList.add("hidden");
 
-  // Switch toolbars back - show normal toolbar (like editor does)
+  // Switch toolbars back - show normal toolbar
   document.getElementById("fileManagerToolbar").classList.remove("hidden");
 
-  // Show appropriate view
-  const listView = document.getElementById("listView");
-  const gridView = document.getElementById("gridView");
+  // Navigate to parent folder
+  const currentPath = currentImagePath ? currentImagePath.substring(0, currentImagePath.lastIndexOf('/')) || '/' : '/';
+  currentImagePath = null;
 
-  if (listView && listView.querySelector("tbody tr")) {
-    listView.classList.remove("hidden");
-  } else if (gridView && gridView.querySelector(".group")) {
-    gridView.classList.remove("hidden");
-  } else {
-    document.getElementById("contentEmpty").classList.remove("hidden");
+  navigateTo(currentPath);
+}
+
+// =================================================================
+// SSH OPERATIONS (ZIP, UNZIP, MOVE)
+// =================================================================
+
+/**
+ * Zip selected files/folders
+ * Requires SSH connection to be enabled in config
+ */
+function zipSelectedFiles() {
+  if (!window.selectedFiles || window.selectedFiles.length === 0) {
+    alert('Please select at least one file or folder to zip.');
+    return;
   }
 
-  currentImagePath = null;
+  // TODO: Implement SSH-based zip operation
+  // This will require:
+  // 1. SSH connection to server
+  // 2. Create zip archive using command-line tools
+  // 3. Return success/failure status
+
+  alert(`Zip functionality coming soon!\n\nSelected ${window.selectedFiles.length} item(s):\n${window.selectedFiles.map(f => f.name).join('\n')}`);
 }
+
+/**
+ * Unzip selected archive file
+ * Requires SSH connection and exactly 1 zip file selected
+ */
+function unzipSelectedFile() {
+  if (!window.selectedFiles || window.selectedFiles.length !== 1) {
+    alert('Please select exactly one archive file to unzip.');
+    return;
+  }
+
+  const selectedFile = window.selectedFiles[0];
+  const zipExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'tgz', 'xz'];
+
+  if (!zipExtensions.includes(selectedFile.extension.toLowerCase())) {
+    alert('Selected file is not a supported archive format.');
+    return;
+  }
+
+
+  // TODO: Implement SSH-based unzip operation
+  // This will require:
+  // 1. SSH connection to server
+  // 2. Extract archive using appropriate command (unzip, tar, etc.)
+  // 3. Handle different archive formats
+  // 4. Return success/failure status
+
+  alert(`Unzip functionality coming soon!\n\nArchive: ${selectedFile.name}\nFormat: ${selectedFile.extension.toUpperCase()}`);
+}
+
+/**
+ * Move selected files/folders to another directory
+ * Requires SSH connection to be enabled in config
+ */
+function moveSelectedFiles() {
+  if (!window.selectedFiles || window.selectedFiles.length === 0) {
+    alert('Please select at least one file or folder to move.');
+    return;
+  }
+
+
+  // TODO: Implement SSH-based move operation
+  // This will require:
+  // 1. Prompt user for destination directory
+  // 2. SSH connection to server
+  // 3. Move files using mv command
+  // 4. Refresh file listing
+  // 5. Return success/failure status
+
+  // Placeholder: Show move dialog
+  const destination = prompt(`Move ${window.selectedFiles.length} item(s) to:\n\n${window.selectedFiles.map(f => f.name).join('\n')}\n\nEnter destination path:`);
+
+  if (destination) {
+    alert(`Move functionality coming soon!\n\nWould move to: ${destination}`);
+  }
+}
+
+/**
+ * ============================================================================
+ * URL CHANGE DETECTION - CENTRAL MECHANISM
+ * Listen to URL change events and trigger handleUrlChange()
+ * ============================================================================
+ */
+
+// Listen to custom urlchange event (dispatched by navigateTo)
+window.addEventListener('urlchange', handleUrlChange);
+
+// Listen to popstate (back/forward buttons)
+window.addEventListener('popstate', handleUrlChange);

@@ -26,7 +26,7 @@ return [
         'charset' => 'UTF-8',
         // Asset version for cache busting (increment when JS/CSS files change)
         // Format: major.minor.patch (e.g., 1.0.0, 1.0.1, 1.1.0, 2.0.0)
-        'asset_version' => '1.9.0',
+        'asset_version' => '3.2.0',
     ],
 
     // ============================================================================
@@ -133,6 +133,30 @@ return [
         'max_connections_per_session' => 1,
         'connection_retry_attempts' => 3,
         'connection_retry_delay' => 2,       // seconds between retries
+    ],
+
+    // ============================================================================
+    // SSH SERVER SETTINGS (for advanced operations: zip, unzip, move)
+    // ============================================================================
+    // When enabled, provides access to SSH-based file operations.
+    // Requires SSH2 PHP extension and proper server configuration.
+
+    'ssh' => [
+        // Enable/Disable SSH features (zip, unzip, move operations)
+        'enabled' => false, // Set to true to enable zip/unzip/move features
+
+        // SSH Server Configuration (same server as FTP, but SSH protocol)
+        'server' => [
+            'host' => '192.168.187.139',  // SSH server hostname/IP (usually same as FTP)
+            'port' => 22,                    // SSH port (default: 22)
+        ],
+
+        // SSH Connection Settings
+        'timeout' => 30,                     // Connection timeout in seconds
+        'operation_timeout' => 300,          // 5 minutes for zip/unzip operations
+
+        // SSH Authentication (uses same credentials as FTP from session)
+        // No additional credentials needed - uses FTP username/password from login
     ],
 
     // ============================================================================

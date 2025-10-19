@@ -5,89 +5,171 @@ let currentEditingFile = null;
 let originalContent = null;
 
 /**
- * Open file in integrated editor (replaces content area)
+ * Open file in integrated editor
+ * NOTE: URL should already be updated before calling this
  */
-function openIntegratedEditor(path, updateUrl = true) {
+function openIntegratedEditor(path) {
   // Store current file
   currentEditingFile = path;
 
-  // Update URL if needed (previewFile already does this, but direct calls might not)
-  if (updateUrl) {
-    const url = new URL(window.location);
-    url.searchParams.set('path', path);
-    url.searchParams.set('action', 'edit');
-    window.history.pushState({ path: path, action: 'edit' }, '', url);
-  }
-
   // Hide all content views
   document.getElementById("contentEmpty").classList.add("hidden");
+  document.getElementById("contentLoading").classList.add("hidden");
   document.getElementById("listView").classList.add("hidden");
-  document.getElementById("gridView").classList.add("hidden");
 
   // Show editor view
   document.getElementById("editorView").classList.remove("hidden");
 
-  // Switch toolbars - hide normal toolbar, show editor toolbar
+  // Switch toolbars
   document.getElementById("fileManagerToolbar").classList.add("hidden");
   document.getElementById("editorToolbar").classList.remove("hidden");
+
+  // Get file info for immediate UI update
+  const fileName = path.split("/").pop();
+  const icon = getFileIcon(path);
+  const extension = fileName.split(".").pop().toLowerCase();
+
+  // Update toolbar file info immediately (before API call)
+  document.getElementById("editorToolbarFileName").textContent = fileName;
+  document.getElementById("editorToolbarFileIcon").className = icon;
+  document.getElementById("editorToolbarFileType").textContent =
+    getFileTypeName(extension);
+  document.getElementById("editorToolbarFileSize").textContent = "Loading...";
+
+  // Clear editor container and show professional loading state
+  const editorContainer = document.getElementById("editorContainer");
+
+  // Clear any previous editor content
+  editorContainer.innerHTML = "";
+
+  // Create and add loading overlay
+  const loadingOverlay = document.createElement("div");
+  loadingOverlay.id = "editorLoadingOverlay";
+  loadingOverlay.className =
+    "absolute inset-0 flex flex-col items-center justify-center h-full space-y-6 bg-white dark:bg-gray-900 z-50";
+  loadingOverlay.innerHTML = `
+    <div class="flex flex-col items-center space-y-6 animate-pulse">
+      <!-- Elegant loading spinner -->
+      <div class="relative">
+        <div class="w-16 h-16 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+        <div class="absolute top-0 left-0 w-16 h-16 border-4 border-primary-500 dark:border-primary-400 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+
+      <!-- Loading text -->
+      <div class="text-center space-y-2">
+        <p class="text-lg font-medium text-gray-700 dark:text-gray-300">Loading ${fileName}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Please wait...</p>
+      </div>
+
+      <!-- Loading skeleton (simulates code lines) -->
+      <div class="w-full max-w-2xl space-y-3 px-8">
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-4/5"></div>
+      </div>
+    </div>
+  `;
+
+  // Make container relative for absolute positioning of overlay
+  editorContainer.style.position = "relative";
+  editorContainer.appendChild(loadingOverlay);
+
+  // Disable all editor toolbar buttons during loading
+  document.getElementById("editorToolbarSaveBtn").disabled = true;
+  const editorToolbar = document.getElementById("editorToolbar");
+  const allButtons = editorToolbar.querySelectorAll("button");
+  allButtons.forEach((btn) => {
+    btn.disabled = true;
+    btn.classList.add("opacity-50", "cursor-not-allowed");
+  });
+
+  // Track if we should close editor on completion (for error cases)
+  let shouldCloseEditor = false;
+  let errorMessage = null;
 
   // Fetch file content
   fetch("/api/file/read?path=" + encodeURIComponent(path))
     .then((response) => response.json())
     .then((data) => {
-      if (data.success) {
-        // Update file info
-        const fileName = path.split("/").pop();
-        const icon = getFileIcon(path);
-        const extension = fileName.split(".").pop().toLowerCase();
+      if (!data.success) {
+        // API returned error - mark for closure
+        shouldCloseEditor = true;
+        errorMessage = data.message || "Unknown error";
+        return;
+      }
 
-        // Update top toolbar file info
-        document.getElementById("editorToolbarFileName").textContent = fileName;
-        document.getElementById("editorToolbarFileIcon").className = icon;
-        document.getElementById("editorToolbarFileType").textContent =
-          getFileTypeName(extension);
-        document.getElementById("editorToolbarFileSize").textContent =
-          formatFileSize(data.size || 0);
+      // Update file size in toolbar
+      document.getElementById("editorToolbarFileSize").textContent =
+        formatFileSize(data.size || 0);
 
-        // Update editor view file info (if these elements exist)
-        if (document.getElementById("editorFileName")) {
-          document.getElementById("editorFileName").textContent = fileName;
-        }
-        if (document.getElementById("editorFileType")) {
-          document.getElementById("editorFileType").textContent =
-            getFileTypeName(extension);
-        }
-        if (document.getElementById("editorFileSize")) {
-          document.getElementById("editorFileSize").textContent =
-            formatFileSize(data.size || 0);
-        }
+      // Update legacy editor view file info (backwards compatibility)
+      const editorFileNameEl = document.getElementById("editorFileName");
+      if (editorFileNameEl) {
+        editorFileNameEl.textContent = fileName;
+      }
 
-        if (data.isEditable) {
-          // Initialize CodeMirror editor
-          if (window.codeMirrorEditor) {
-            window.codeMirrorEditor.initialize(data.content, extension, false);
-            originalContent = data.content;
-            window.codeMirrorEditor.setOriginalContent(data.content);
-            window.codeMirrorEditor.setCurrentFilePath(path);
-            window.codeMirrorEditor.setModified(false);
-            // Update all editor button states (instant, no delay needed)
-            updateEditorButtons();
-          }
-        } else {
-          // Show message for non-editable files
-          document.getElementById("editorContainer").innerHTML =
-            '<div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">This file type cannot be edited</div>';
-          document.getElementById("editorToolbarSaveBtn").disabled = true;
+      const editorFileTypeEl = document.getElementById("editorFileType");
+      if (editorFileTypeEl) {
+        editorFileTypeEl.textContent = getFileTypeName(extension);
+      }
+
+      const editorFileSizeEl = document.getElementById("editorFileSize");
+      if (editorFileSizeEl) {
+        editorFileSizeEl.textContent = formatFileSize(data.size || 0);
+      }
+
+      if (data.isEditable) {
+        // Initialize CodeMirror editor
+        if (window.codeMirrorEditor) {
+          window.codeMirrorEditor.initialize(data.content, extension, false);
+          originalContent = data.content;
+          window.codeMirrorEditor.setOriginalContent(data.content);
+          window.codeMirrorEditor.setCurrentFilePath(path);
+          window.codeMirrorEditor.setModified(false);
+
+          // Update all editor button states based on actual state
+          updateEditorButtons();
         }
       } else {
-        alert("Failed to open file: " + (data.message || "Unknown error"));
-        closeEditor();
+        // Show message for non-editable files
+        editorContainer.innerHTML =
+          '<div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">This file type cannot be edited</div>';
+        document.getElementById("editorToolbarSaveBtn").disabled = true;
       }
     })
     .catch((error) => {
       console.error("Error opening file:", error);
-      alert("Failed to open file");
-      closeEditor();
+
+      // Network/JavaScript error - mark for closure
+      shouldCloseEditor = true;
+      errorMessage = error.message || "Network error";
+    })
+    .finally(() => {
+      // Remove loading overlay from editorContainer
+      const overlay = document.getElementById("editorLoadingOverlay");
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+
+      // Re-enable all editor toolbar buttons
+      allButtons.forEach((btn) => {
+        btn.disabled = false;
+        btn.classList.remove("opacity-50", "cursor-not-allowed");
+      });
+
+      // If error occurred, show message and close editor
+      if (shouldCloseEditor) {
+        // Use double requestAnimationFrame to ensure browser has painted the removal
+        // This guarantees the spinner disappears before the alert shows
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            alert("Failed to open file: " + errorMessage);
+            closeEditor();
+          });
+        });
+      }
     });
 }
 
@@ -145,9 +227,7 @@ async function saveFile() {
       window.codeMirrorEditor.setModified(false);
 
       // Hide modified status
-      document
-        .getElementById("editorModifiedStatus")
-        ?.classList.add("hidden");
+      document.getElementById("editorModifiedStatus")?.classList.add("hidden");
 
       // Show success icon briefly
       saveBtn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
@@ -207,34 +287,29 @@ function closeEditor() {
     }
   }
 
-  // Clear URL parameters when closing editor
-  const url = new URL(window.location);
-  url.searchParams.delete('action');
-  // Keep the path parameter pointing to the folder
-  const currentPath = currentEditingFile ? currentEditingFile.substring(0, currentEditingFile.lastIndexOf('/')) || '/' : '/';
-  url.searchParams.set('path', currentPath);
-  window.history.pushState({ path: currentPath }, '', url);
+  // Clear the editor container completely
+  const editorContainer = document.getElementById("editorContainer");
+  if (editorContainer) {
+    editorContainer.innerHTML = "";
+    editorContainer.style.position = "";
+  }
 
-  // Hide editor
+  // Hide editor view
   document.getElementById("editorView").classList.add("hidden");
 
   // Switch toolbars back - show normal toolbar, hide editor toolbar
   document.getElementById("fileManagerToolbar").classList.remove("hidden");
   document.getElementById("editorToolbar").classList.add("hidden");
 
-  // Show appropriate view
-  const listView = document.getElementById("listView");
-  const gridView = document.getElementById("gridView");
-
-  if (listView && listView.querySelector("tbody tr")) {
-    listView.classList.remove("hidden");
-  } else if (gridView && gridView.querySelector(".group")) {
-    gridView.classList.remove("hidden");
-  } else {
-    document.getElementById("contentEmpty").classList.remove("hidden");
-  }
+  // Navigate to parent folder
+  const currentPath = currentEditingFile
+    ? currentEditingFile.substring(0, currentEditingFile.lastIndexOf("/")) ||
+      "/"
+    : "/";
 
   currentEditingFile = null;
+
+  window.navigateTo(currentPath);
 }
 
 /**

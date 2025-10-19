@@ -62,4 +62,8 @@ return [
     'new_file' => 'New File',
     'enter_path' => 'Enter path...',
     'items_selected' => 'items selected',
+    'select_all' => 'Select All',
+    'zip_files' => 'Zip Selected Files',
+    'unzip_file' => 'Unzip File',
+    'move_files' => 'Move Selected Files',
 ];

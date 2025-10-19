@@ -62,4 +62,8 @@ return [
     'new_file' => 'Nouveau fichier',
     'enter_path' => 'Entrez le chemin...',
     'items_selected' => 'éléments sélectionnés',
+    'select_all' => 'Tout sélectionner',
+    'zip_files' => 'Compresser les fichiers sélectionnés',
+    'unzip_file' => 'Décompresser le fichier',
+    'move_files' => 'Déplacer les fichiers sélectionnés',
 ];

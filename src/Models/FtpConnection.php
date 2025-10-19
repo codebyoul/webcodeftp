@@ -551,6 +551,53 @@ class FtpConnection
     }
 
     /**
+     * Read file content from FTP server
+     *
+     * @param string $filePath Path to the file on FTP server
+     * @return string|false File content as string or false on failure
+     */
+    public function readFile(string $filePath): string|false
+    {
+        if (!$this->isConnected()) {
+            Logger::ftp("readFile", ['reason' => 'Not connected', 'path' => $filePath], false);
+            return false;
+        }
+
+        Logger::ftp("readFile", ['path' => $filePath]);
+
+        // Create a temporary stream to store file content
+        $tempStream = fopen('php://temp', 'r+');
+
+        if ($tempStream === false) {
+            Logger::ftp("readFile", ['reason' => 'Failed to create temp stream', 'path' => $filePath], false);
+            return false;
+        }
+
+        // Download file to temporary stream in binary mode
+        $result = @ftp_fget($this->connection, $tempStream, $filePath, FTP_BINARY);
+
+        if (!$result) {
+            fclose($tempStream);
+            Logger::ftp("readFile", ['reason' => 'Failed to download file', 'path' => $filePath], false);
+            return false;
+        }
+
+        // Read content from stream
+        rewind($tempStream);
+        $content = stream_get_contents($tempStream);
+        fclose($tempStream);
+
+        if ($content === false) {
+            Logger::ftp("readFile", ['reason' => 'Failed to read stream content', 'path' => $filePath], false);
+            return false;
+        }
+
+        Logger::ftp("readFile", ['path' => $filePath, 'size' => strlen($content)], true);
+
+        return $content;
+    }
+
+    /**
      * Get FTP connection resource (for advanced operations)
      *
      * @return Connection|null
