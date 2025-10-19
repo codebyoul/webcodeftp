@@ -104,22 +104,6 @@ function openIntegratedEditor(path) {
       document.getElementById("editorToolbarFileSize").textContent =
         formatFileSize(data.size || 0);
 
-      // Update legacy editor view file info (backwards compatibility)
-      const editorFileNameEl = document.getElementById("editorFileName");
-      if (editorFileNameEl) {
-        editorFileNameEl.textContent = fileName;
-      }
-
-      const editorFileTypeEl = document.getElementById("editorFileType");
-      if (editorFileTypeEl) {
-        editorFileTypeEl.textContent = getFileTypeName(extension);
-      }
-
-      const editorFileSizeEl = document.getElementById("editorFileSize");
-      if (editorFileSizeEl) {
-        editorFileSizeEl.textContent = formatFileSize(data.size || 0);
-      }
-
       if (data.isEditable) {
         // Initialize CodeMirror editor
         if (window.codeMirrorEditor) {
@@ -161,13 +145,8 @@ function openIntegratedEditor(path) {
 
       // If error occurred, show message and close editor
       if (shouldCloseEditor) {
-        // Use double requestAnimationFrame to ensure browser has painted the removal
-        // This guarantees the spinner disappears before the alert shows
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            alert("Failed to open file: " + errorMessage);
-            closeEditor();
-          });
+        showDialog("Failed to open file: " + errorMessage).then(() => {
+          closeEditor();
         });
       }
     });
@@ -236,12 +215,12 @@ async function saveFile() {
         updateSaveButton(); // Update button state
       }, 2000);
     } else {
-      alert("Failed to save: " + (data.message || "Unknown error"));
+      showDialog("Failed to save: " + (data.message || "Unknown error"));
       saveBtn.innerHTML = originalIcon;
       saveBtn.disabled = false;
     }
   } catch (error) {
-    alert("Failed to save file: " + error.message);
+    showDialog("Failed to save file: " + error.message);
     saveBtn.innerHTML = originalIcon;
     saveBtn.disabled = false;
   }
@@ -250,15 +229,15 @@ async function saveFile() {
 /**
  * Refresh file from server
  */
-function refreshFile() {
+async function refreshFile() {
   if (!currentEditingFile) return;
 
   if (window.codeMirrorEditor && window.codeMirrorEditor.isModified()) {
-    if (
-      !confirm(
-        "You have unsaved changes. Refreshing will discard them. Continue?"
-      )
-    ) {
+    const shouldContinue = await showConfirm(
+      "You have unsaved changes. Refreshing will discard them. Continue?",
+      "Refresh File"
+    );
+    if (!shouldContinue) {
       return;
     }
   }
@@ -279,10 +258,14 @@ function searchInFile() {
 /**
  * Close editor and return to file list
  */
-function closeEditor() {
+async function closeEditor() {
   // Check for unsaved changes
   if (window.codeMirrorEditor && window.codeMirrorEditor.isModified()) {
-    if (!confirm("You have unsaved changes. Are you sure you want to close?")) {
+    const shouldClose = await showConfirm(
+      "You have unsaved changes. Are you sure you want to close?",
+      "Close Editor"
+    );
+    if (!shouldClose) {
       return;
     }
   }

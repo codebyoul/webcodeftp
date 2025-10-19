@@ -1,5 +1,449 @@
 // WebFTP File Manager JavaScript
 // Handles file operations, UI interactions, and file browser logic
+// NOTE: api-interceptor.js must be loaded BEFORE this file for 401 handling
+
+/**
+ * ============================================================================
+ * CUSTOM DIALOG SYSTEM - Replaces showDialog(), confirm(), prompt()
+ * ============================================================================
+ */
+
+/**
+ * Show custom alert dialog
+ * @param {string} message - The message to display
+ * @param {string} title - Optional dialog title (default: "Alert")
+ * @returns {Promise} Resolves when user clicks OK
+ */
+window.showDialog = function (message, title = "Alert") {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById("customDialog");
+    const dialogBox = document.getElementById("customDialogBox");
+    const titleEl = document.getElementById("customDialogTitle");
+    const messageEl = document.getElementById("customDialogMessage");
+    const inputEl = document.getElementById("customDialogInput");
+    const confirmBtn = document.getElementById("customDialogConfirm");
+    const cancelBtn = document.getElementById("customDialogCancel");
+
+    // Set content
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    // Hide input and cancel button (alert only has OK)
+    inputEl.classList.add("hidden");
+    cancelBtn.classList.add("hidden");
+    confirmBtn.textContent = "OK";
+
+    // Show dialog with animation
+    dialog.classList.remove("hidden");
+    dialog.classList.add("flex");
+    // Trigger reflow to enable CSS transition
+    dialog.offsetHeight;
+    dialog.classList.remove("opacity-0");
+    dialogBox.classList.remove("scale-95");
+    dialogBox.classList.add("scale-100");
+
+    // Handle OK click
+    const handleConfirm = () => {
+      closeDialog();
+      resolve();
+    };
+
+    // Handle Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeDialog();
+        resolve();
+      }
+    };
+
+    const closeDialog = () => {
+      dialog.classList.add("opacity-0");
+      dialogBox.classList.remove("scale-100");
+      dialogBox.classList.add("scale-95");
+      setTimeout(() => {
+        dialog.classList.remove("flex");
+        dialog.classList.add("hidden");
+      }, 200);
+      confirmBtn.removeEventListener("click", handleConfirm);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    confirmBtn.addEventListener("click", handleConfirm);
+    document.addEventListener("keydown", handleEscape);
+
+    // Focus the OK button
+    setTimeout(() => confirmBtn.focus(), 250);
+  });
+};
+
+/**
+ * Show custom confirm dialog
+ * @param {string} message - The message to display
+ * @param {string} title - Optional dialog title (default: "Confirm")
+ * @returns {Promise<boolean>} Resolves with true if OK, false if Cancel
+ */
+window.showConfirm = function (message, title = "Confirm") {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById("customDialog");
+    const dialogBox = document.getElementById("customDialogBox");
+    const titleEl = document.getElementById("customDialogTitle");
+    const messageEl = document.getElementById("customDialogMessage");
+    const inputEl = document.getElementById("customDialogInput");
+    const confirmBtn = document.getElementById("customDialogConfirm");
+    const cancelBtn = document.getElementById("customDialogCancel");
+
+    // Set content
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+
+    // Show cancel button, hide input
+    inputEl.classList.add("hidden");
+    cancelBtn.classList.remove("hidden");
+    confirmBtn.textContent = "OK";
+    cancelBtn.textContent = "Cancel";
+
+    // Show dialog with animation
+    dialog.classList.remove("hidden");
+    dialog.classList.add("flex");
+    // Trigger reflow to enable CSS transition
+    dialog.offsetHeight;
+    dialog.classList.remove("opacity-0");
+    dialogBox.classList.remove("scale-95");
+    dialogBox.classList.add("scale-100");
+
+    // Handle OK click
+    const handleConfirm = () => {
+      closeDialog();
+      resolve(true);
+    };
+
+    // Handle Cancel click
+    const handleCancel = () => {
+      closeDialog();
+      resolve(false);
+    };
+
+    // Handle Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeDialog();
+        resolve(false);
+      }
+    };
+
+    const closeDialog = () => {
+      dialog.classList.add("opacity-0");
+      dialogBox.classList.remove("scale-100");
+      dialogBox.classList.add("scale-95");
+      setTimeout(() => {
+        dialog.classList.remove("flex");
+        dialog.classList.add("hidden");
+      }, 200);
+      confirmBtn.removeEventListener("click", handleConfirm);
+      cancelBtn.removeEventListener("click", handleCancel);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    confirmBtn.addEventListener("click", handleConfirm);
+    cancelBtn.addEventListener("click", handleCancel);
+    document.addEventListener("keydown", handleEscape);
+
+    // Focus the confirm button
+    setTimeout(() => confirmBtn.focus(), 250);
+  });
+};
+
+/**
+ * Show custom prompt dialog
+ * @param {string} message - The message to display
+ * @param {string} defaultValue - Default input value
+ * @param {string} title - Optional dialog title (default: "Input")
+ * @returns {Promise<string|null>} Resolves with input value if OK, null if Cancel
+ */
+window.showPrompt = function (message, defaultValue = "", title = "Input") {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById("customDialog");
+    const dialogBox = document.getElementById("customDialogBox");
+    const titleEl = document.getElementById("customDialogTitle");
+    const messageEl = document.getElementById("customDialogMessage");
+    const inputEl = document.getElementById("customDialogInput");
+    const confirmBtn = document.getElementById("customDialogConfirm");
+    const cancelBtn = document.getElementById("customDialogCancel");
+
+    // Set content
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    inputEl.value = defaultValue;
+
+    // Show input and cancel button
+    inputEl.classList.remove("hidden");
+    cancelBtn.classList.remove("hidden");
+    confirmBtn.textContent = "OK";
+    cancelBtn.textContent = "Cancel";
+
+    // Show dialog with animation
+    dialog.classList.remove("hidden");
+    dialog.classList.add("flex");
+    // Trigger reflow to enable CSS transition
+    dialog.offsetHeight;
+    dialog.classList.remove("opacity-0");
+    dialogBox.classList.remove("scale-95");
+    dialogBox.classList.add("scale-100");
+
+    // Handle OK click
+    const handleConfirm = () => {
+      const value = inputEl.value.trim();
+      closeDialog();
+      resolve(value || null);
+    };
+
+    // Handle Cancel click
+    const handleCancel = () => {
+      closeDialog();
+      resolve(null);
+    };
+
+    // Handle Enter key in input
+    const handleEnter = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleConfirm();
+      }
+    };
+
+    // Handle Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeDialog();
+        resolve(null);
+      }
+    };
+
+    const closeDialog = () => {
+      dialog.classList.add("opacity-0");
+      dialogBox.classList.remove("scale-100");
+      dialogBox.classList.add("scale-95");
+      setTimeout(() => {
+        dialog.classList.remove("flex");
+        dialog.classList.add("hidden");
+      }, 200);
+      confirmBtn.removeEventListener("click", handleConfirm);
+      cancelBtn.removeEventListener("click", handleCancel);
+      inputEl.removeEventListener("keydown", handleEnter);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    confirmBtn.addEventListener("click", handleConfirm);
+    cancelBtn.addEventListener("click", handleCancel);
+    inputEl.addEventListener("keydown", handleEnter);
+    document.addEventListener("keydown", handleEscape);
+
+    // Focus and select the input
+    setTimeout(() => {
+      inputEl.focus();
+      inputEl.select();
+    }, 250);
+  });
+};
+
+/**
+ * ============================================================================
+ * SELECTION TRACKING SYSTEM
+ * ============================================================================
+ */
+
+// Global selection state
+window.selectedItems = [];
+
+/**
+ * Clear all selections
+ */
+function clearSelection() {
+  window.selectedItems = [];
+  updateSelectionUI();
+  updateActionButtonStates();
+}
+
+/**
+ * Select a single item (replaces current selection)
+ */
+function selectItem(item) {
+  window.selectedItems = [item];
+  updateSelectionUI();
+  updateActionButtonStates();
+}
+
+/**
+ * Toggle item selection (for checkboxes)
+ */
+function toggleItemSelection(item) {
+  const index = window.selectedItems.findIndex((i) => i.path === item.path);
+
+  if (index >= 0) {
+    // Item is selected - unselect it
+    window.selectedItems.splice(index, 1);
+  } else {
+    // Item is not selected - add it
+    window.selectedItems.push(item);
+  }
+
+  updateSelectionUI();
+  updateActionButtonStates();
+}
+
+/**
+ * Update visual selection feedback
+ */
+function updateSelectionUI() {
+  const count = window.selectedItems.length;
+
+  // Update selection count in sidebar footer
+  const selectedCount = document.getElementById("selectedCount");
+  const statusBar = document.getElementById("statusBar");
+  const statusBarText = document.getElementById("statusBarText");
+
+  if (selectedCount) {
+    selectedCount.textContent = count;
+  }
+
+  // Make status bar more visible when items are selected
+  if (statusBar && statusBarText) {
+    if (count > 0) {
+      // Highlight status bar when items selected
+      statusBar.classList.remove("bg-gray-50", "dark:bg-gray-900");
+      statusBar.classList.add("bg-blue-100", "dark:bg-blue-900/30");
+      statusBarText.classList.remove("text-gray-500", "dark:text-gray-400");
+      statusBarText.classList.add(
+        "text-blue-700",
+        "dark:text-blue-300",
+        "font-semibold"
+      );
+    } else {
+      // Reset to default when no selection
+      statusBar.classList.remove("bg-blue-100", "dark:bg-blue-900/30");
+      statusBar.classList.add("bg-gray-50", "dark:bg-gray-900");
+      statusBarText.classList.remove(
+        "text-blue-700",
+        "dark:text-blue-300",
+        "font-semibold"
+      );
+      statusBarText.classList.add("text-gray-500", "dark:text-gray-400");
+    }
+  }
+
+  // Update row highlighting and checkboxes in list view
+  const rows = document.querySelectorAll("tr[data-path]");
+  rows.forEach((row) => {
+    const rowPath = row.dataset.path;
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    const isSelected = window.selectedItems.some(
+      (item) => item.path === rowPath
+    );
+
+    if (isSelected) {
+      // Add selection highlight (blue background)
+      row.classList.add("bg-blue-50", "dark:bg-blue-900/20");
+      if (checkbox) checkbox.checked = true;
+    } else {
+      // Remove selection highlight
+      row.classList.remove("bg-blue-50", "dark:bg-blue-900/20");
+      if (checkbox) checkbox.checked = false;
+    }
+  });
+
+  // Update select-all checkbox state
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+  if (selectAllCheckbox) {
+    const totalRows = rows.length;
+    const selectedRows = count;
+
+    if (selectedRows === 0) {
+      // Nothing selected
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (selectedRows === totalRows && totalRows > 0) {
+      // All selected
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      // Some selected (indeterminate state)
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    }
+  }
+}
+
+/**
+ * Update action button states based on selection
+ */
+function updateActionButtonStates() {
+  const renameBtn = document.querySelector(
+    'button[onclick="renameSelected()"]'
+  );
+  const deleteBtn = document.querySelector(
+    'button[onclick="deleteSelected()"]'
+  );
+  const downloadBtn = document.querySelector(
+    'button[onclick="downloadSelected()"]'
+  );
+
+  const count = window.selectedItems.length;
+  const fileCount = window.selectedItems.filter(
+    (item) => item.type === "file"
+  ).length;
+
+  // Rename: only enabled when exactly 1 item selected
+  if (renameBtn) {
+    if (count === 1) {
+      renameBtn.disabled = false;
+      renameBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      renameBtn.title = "Rename";
+    } else if (count === 0) {
+      renameBtn.disabled = true;
+      renameBtn.classList.add("opacity-50", "cursor-not-allowed");
+      renameBtn.title = "Select an item to rename";
+    } else {
+      renameBtn.disabled = true;
+      renameBtn.classList.add("opacity-50", "cursor-not-allowed");
+      renameBtn.title = "Select only one item to rename";
+    }
+  }
+
+  // Delete: enabled when 1+ items selected
+  if (deleteBtn) {
+    if (count > 0) {
+      deleteBtn.disabled = false;
+      deleteBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      deleteBtn.title = "Delete";
+    } else {
+      deleteBtn.disabled = true;
+      deleteBtn.classList.add("opacity-50", "cursor-not-allowed");
+      deleteBtn.title = "Select item(s) to delete";
+    }
+  }
+
+  // Download: enabled when 1+ files selected (folders cannot be downloaded)
+  if (downloadBtn) {
+    if (fileCount > 0) {
+      downloadBtn.disabled = false;
+      downloadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      downloadBtn.title =
+        fileCount === 1 ? "Download file" : `Download ${fileCount} file(s)`;
+    } else if (count > 0) {
+      // Has selection but no files (only folders)
+      downloadBtn.disabled = true;
+      downloadBtn.classList.add("opacity-50", "cursor-not-allowed");
+      downloadBtn.title = "Select file(s) to download (folders not supported)";
+    } else {
+      downloadBtn.disabled = true;
+      downloadBtn.classList.add("opacity-50", "cursor-not-allowed");
+      downloadBtn.title = "Select file(s) to download";
+    }
+  }
+
+  // Update unzip button state (if SSH enabled)
+  updateUnzipButtonState();
+}
 
 /**
  * ============================================================================
@@ -12,20 +456,22 @@
  * Navigate to a path by updating the URL
  * This is the ONLY way to navigate - all navigation goes through this function
  */
-function navigateTo(path, action = null) {
+function navigateTo(path, action = null, skipExpand = false) {
   const url = new URL(window.location);
-  url.searchParams.set('path', path);
+  url.searchParams.set("path", path);
 
   if (action) {
-    url.searchParams.set('action', action);
+    url.searchParams.set("action", action);
   } else {
-    url.searchParams.delete('action');
+    url.searchParams.delete("action");
   }
 
-  window.history.pushState({ path, action }, '', url);
+  window.history.pushState({ path, action }, "", url);
 
   // Dispatch custom event for URL change
-  window.dispatchEvent(new CustomEvent('urlchange'));
+  window.dispatchEvent(
+    new CustomEvent("urlchange", { detail: { skipExpand } })
+  );
 }
 
 /**
@@ -34,47 +480,101 @@ function navigateTo(path, action = null) {
  * - User clicks back/forward (popstate)
  * - navigateTo() is called
  */
-function handleUrlChange() {
+function handleUrlChange(event) {
   const urlParams = new URLSearchParams(window.location.search);
-  const path = urlParams.get('path') || '/';
-  const action = urlParams.get('action');
+  const path = urlParams.get("path") || "/";
+  const action = urlParams.get("action");
 
-  // ALWAYS sync tree first
-  if (typeof highlightCurrentPath === 'function') {
-    highlightCurrentPath(path);
+  // Clear selection when navigating to different folder
+  clearSelection();
+
+  // Update parent button visibility
+  if (typeof updateParentButtonVisibility === "function") {
+    updateParentButtonVisibility();
   }
 
   // Determine what to show based on path and action
-  const isFile = path.includes('.') && !path.endsWith('/');
+  const isFile = path.includes(".") && !path.endsWith("/");
+
+  // Check if we should skip expanding (folder click in tree)
+  const skipExpand = event?.detail?.skipExpand || false;
+
+  // Sync tree
+  if (typeof highlightCurrentPath === "function") {
+    if (skipExpand) {
+      // Just highlight, don't expand (folder was clicked in tree)
+      highlightCurrentPath(path, false);
+    } else {
+      // Expand parents to show the path (URL navigation, file, or initial load)
+      highlightCurrentPath(path, true);
+    }
+  }
 
   if (isFile) {
     // It's a FILE
-    const folderPath = path.substring(0, path.lastIndexOf('/')) || '/';
+    const folderPath = path.substring(0, path.lastIndexOf("/")) || "/";
 
     // Check if we need to load folder contents
     // If we're opening editor, we don't need to load the folder list
-    if (action === 'edit') {
+    if (action === "edit") {
       // Just open the editor directly - no need to load folder contents
       openIntegratedEditor(path);
-    } else {
-      // For image preview or file info, we need the file data from folder contents
+    } else if (action === "preview") {
+      // Show image preview - need file data
       loadFolderContents(folderPath, (data) => {
         if (!data || !data.success) {
-          displayPathNotFound(path);
+          const errorMessage = data?.message || "Folder not found";
+          if (typeof window.displayFolderNotFound === "function") {
+            window.displayFolderNotFound(folderPath, errorMessage);
+          }
           return;
         }
 
-        const fileData = (data.files || []).find(f => f.path === path);
+        const fileData = (data.files || []).find((f) => f.path === path);
 
         if (!fileData) {
-          displayFileNotFound(path);
+          const fileName = path.split("/").pop();
+          if (typeof window.displayFileNotFound === "function") {
+            window.displayFileNotFound(
+              path,
+              `File "${fileName}" not found in this folder`
+            );
+          }
           return;
         }
 
-        if (isImageFile(fileData.name)) {
-          displayImagePreview(fileData);
-        } else {
-          displaySelectedFile(fileData);
+        // Always show preview for action=preview
+        if (typeof window.displayImagePreview === "function") {
+          window.displayImagePreview(fileData);
+        }
+      });
+    } else {
+      // No action = check file type and show appropriate view
+      loadFolderContents(folderPath, (data) => {
+        if (!data || !data.success) {
+          const errorMessage = data?.message || "Folder not found";
+          if (typeof window.displayFolderNotFound === "function") {
+            window.displayFolderNotFound(folderPath, errorMessage);
+          }
+          return;
+        }
+
+        const fileData = (data.files || []).find((f) => f.path === path);
+
+        if (!fileData) {
+          const fileName = path.split("/").pop();
+          if (typeof window.displayFileNotFound === "function") {
+            window.displayFileNotFound(
+              path,
+              `File "${fileName}" not found in this folder`
+            );
+          }
+          return;
+        }
+
+        // No action = always show file info (for both images and regular files)
+        if (typeof window.displaySelectedFile === "function") {
+          window.displaySelectedFile(fileData);
         }
       });
     }
@@ -82,7 +582,10 @@ function handleUrlChange() {
     // It's a FOLDER
     loadFolderContents(path, (data) => {
       if (!data || !data.success) {
-        displayPathNotFound(path);
+        const errorMessage = data?.message || "Folder not found";
+        if (typeof window.displayFolderNotFound === "function") {
+          window.displayFolderNotFound(path, errorMessage);
+        }
       }
     });
   }
@@ -95,18 +598,16 @@ function previewFile(path) {
   closeAllPreviews();
 
   // Check if it's an image or code file
-  const filename = path.split('/').pop();
+  const filename = path.split("/").pop();
 
   if (isImageFile(filename)) {
-    // Navigate without action (will show image preview)
-    navigateTo(path);
+    // Navigate with preview action (will show image preview)
+    navigateTo(path, "preview");
   } else {
     // Navigate with edit action (will open editor)
-    navigateTo(path, 'edit');
+    navigateTo(path, "edit");
   }
 }
-
-
 
 /**
  * Sort list view by column
@@ -200,7 +701,7 @@ function updateSortIcons(activeColumn, direction) {
  */
 function refreshCurrentFolder() {
   const urlParams = new URLSearchParams(window.location.search);
-  const currentPath = urlParams.get('path') || '/';
+  const currentPath = urlParams.get("path") || "/";
 
   const refreshBtn = document.getElementById("refreshBtn");
   const icon = refreshBtn.querySelector("i");
@@ -256,232 +757,39 @@ function closeAllPreviews() {
 }
 
 // =================================================================
-// FILE SELECTION AND ACTIONS
+// FILE SELECTION AND ACTIONS (LEGACY - NOW HANDLED BY NEW SYSTEM)
 // =================================================================
-
-// Global selection state management
-// Two distinct types of selection:
-// 1. Checkbox Selection (multi-select for operations) - stored in Set
-// 2. Navigation Focus (single-select for preview) - stored as single item
-window.checkedItems = new Set(); // Paths of checkbox-selected items (persists across views)
-window.focusedItem = null;       // Path of navigation-focused item (clears on view switch)
-window.selectedFiles = [];       // Legacy compatibility - synced with checkedItems
-
-/**
- * Handle file/folder selection (multi-select support)
- */
-function selectItem(path, name, type, extension) {
-  // For single-select compatibility
-  window.selectedFile = {
-    path: path,
-    name: name,
-    type: type,
-    extension: extension,
-  };
-
-  // Check if already selected
-  const existingIndex = window.selectedFiles.findIndex(f => f.path === path);
-
-  if (existingIndex === -1) {
-    // Add to selection
-    window.selectedFiles.push({
-      path: path,
-      name: name,
-      type: type,
-      extension: extension,
-    });
-  }
-
-  // Update unzip button state based on selection
-  updateUnzipButtonState();
-}
-
-/**
- * Deselect a specific item
- */
-function deselectItem(path) {
-  window.selectedFiles = window.selectedFiles.filter(f => f.path !== path);
-
-  // Clear single selection if it matches
-  if (window.selectedFile && window.selectedFile.path === path) {
-    window.selectedFile = null;
-  }
-
-  // Update unzip button state
-  updateUnzipButtonState();
-}
-
-/**
- * Add item to checkbox selection (blue highlight)
- */
-function checkboxSelectItem(path, name, type, extension) {
-  window.checkedItems.add(path);
-
-  // Legacy compatibility
-  const existingIndex = window.selectedFiles.findIndex(f => f.path === path);
-  if (existingIndex === -1) {
-    window.selectedFiles.push({ path, name, type, extension });
-  }
-  window.selectedFile = { path, name, type, extension };
-
-  updateUnzipButtonState();
-}
-
-/**
- * Remove item from checkbox selection
- */
-function checkboxDeselectItem(path) {
-  window.checkedItems.delete(path);
-
-  // Legacy compatibility
-  window.selectedFiles = window.selectedFiles.filter(f => f.path !== path);
-  if (window.selectedFile && window.selectedFile.path === path) {
-    window.selectedFile = null;
-  }
-
-  updateUnzipButtonState();
-}
-
-/**
- * Set navigation focus (gray highlight)
- */
-function setNavigationFocus(path) {
-  // Clear previous focus visual
-  clearNavigationFocus();
-
-  // Set new focus
-  window.focusedItem = path;
-}
-
-/**
- * Clear navigation focus
- */
-function clearNavigationFocus() {
-  // Remove navigation focus from all items
-  document.querySelectorAll('.navigation-focused').forEach(el => {
-    el.classList.remove('navigation-focused', 'bg-gray-100', 'dark:bg-gray-700/50');
-  });
-
-  window.focusedItem = null;
-}
-
-/**
- * Update Select All checkbox state (checked/unchecked/indeterminate)
- */
-function updateSelectAllCheckboxState() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-  const listCheckboxes = Array.from(document.querySelectorAll('#listViewBody input[type="checkbox"]'));
-
-  if (!selectAllCheckbox) return;
-
-  if (listCheckboxes.length === 0) {
-    selectAllCheckbox.checked = false;
-    selectAllCheckbox.indeterminate = false;
-    return;
-  }
-
-  const checkedCount = listCheckboxes.filter(cb => cb.checked).length;
-
-  if (checkedCount === 0) {
-    // None checked
-    selectAllCheckbox.checked = false;
-    selectAllCheckbox.indeterminate = false;
-  } else if (checkedCount === listCheckboxes.length) {
-    // All checked
-    selectAllCheckbox.checked = true;
-    selectAllCheckbox.indeterminate = false;
-  } else {
-    // Some checked (indeterminate)
-    selectAllCheckbox.checked = false;
-    selectAllCheckbox.indeterminate = true;
-  }
-}
-
-/**
- * Clear all checkbox selections
- */
-function clearSelection() {
-  window.selectedFile = null;
-  window.selectedFiles = [];
-  window.checkedItems.clear();
-
-  // Uncheck all file checkboxes (except select-all)
-  document.querySelectorAll('input[type="checkbox"]:not(#selectAllCheckbox)').forEach((cb) => {
-    cb.checked = false;
-  });
-
-  // Uncheck select-all checkbox
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-  if (selectAllCheckbox) {
-    selectAllCheckbox.checked = false;
-    selectAllCheckbox.indeterminate = false;
-  }
-
-  // Remove checkbox selection visual from grid cards
-  document.querySelectorAll(".checkbox-selected").forEach((el) => {
-    el.classList.remove(
-      "checkbox-selected",
-      "border-primary-500",
-      "dark:border-primary-400",
-      "bg-primary-100",
-      "dark:bg-primary-900/30"
-    );
-  });
-
-  // Clear navigation focus
-  clearNavigationFocus();
-
-  // Update unzip button state
-  updateUnzipButtonState();
-}
 
 /**
  * Update unzip button state (enabled only if exactly 1 zip file is selected)
  */
 function updateUnzipButtonState() {
-  const unzipBtn = document.getElementById('unzipBtn');
+  const unzipBtn = document.getElementById("unzipBtn");
   if (!unzipBtn) return; // SSH not enabled
 
-  const zipExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'tgz', 'xz'];
+  const zipExtensions = ["zip", "tar", "gz", "bz2", "7z", "rar", "tgz", "xz"];
 
-  // Enable if exactly 1 file selected and it's a zip format
-  if (window.selectedFiles.length === 1) {
-    const selectedFile = window.selectedFiles[0];
-    const isZipFile = zipExtensions.includes(selectedFile.extension.toLowerCase());
+  // Enable if exactly 1 item selected and it's a zip format
+  if (window.selectedItems && window.selectedItems.length === 1) {
+    const selectedItem = window.selectedItems[0];
+    const extension = selectedItem.name.split(".").pop().toLowerCase();
+    const isZipFile = zipExtensions.includes(extension);
 
     if (isZipFile) {
       unzipBtn.disabled = false;
-      unzipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-      unzipBtn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+      unzipBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      unzipBtn.classList.add("hover:bg-gray-100", "dark:hover:bg-gray-700");
     } else {
       unzipBtn.disabled = true;
-      unzipBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      unzipBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+      unzipBtn.classList.add("opacity-50", "cursor-not-allowed");
+      unzipBtn.classList.remove("hover:bg-gray-100", "dark:hover:bg-gray-700");
     }
   } else {
-    // Disable if 0 or more than 1 file selected
+    // Disable if 0 or more than 1 item selected
     unzipBtn.disabled = true;
-    unzipBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    unzipBtn.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+    unzipBtn.classList.add("opacity-50", "cursor-not-allowed");
+    unzipBtn.classList.remove("hover:bg-gray-100", "dark:hover:bg-gray-700");
   }
-}
-
-/**
- * Select all files in current view
- */
-function selectAllFiles() {
-  const checkboxes = document.querySelectorAll('#listViewBody input[type="checkbox"]');
-  checkboxes.forEach(cb => {
-    cb.checked = true;
-    cb.dispatchEvent(new Event('change'));
-  });
-}
-
-/**
- * Deselect all files in current view
- */
-function deselectAllFiles() {
-  clearSelection();
 }
 
 /**
@@ -545,14 +853,16 @@ document.addEventListener("DOMContentLoaded", function () {
   // Select All Checkbox Handler
   const selectAllCheckbox = document.getElementById("selectAllCheckbox");
   if (selectAllCheckbox) {
-    selectAllCheckbox.addEventListener("change", function() {
+    selectAllCheckbox.addEventListener("change", function () {
       if (this.checked) {
         // Select all items in list view
-        const listCheckboxes = document.querySelectorAll('#listViewBody input[type="checkbox"]');
-        listCheckboxes.forEach(cb => {
+        const listCheckboxes = document.querySelectorAll(
+          '#listViewBody input[type="checkbox"]'
+        );
+        listCheckboxes.forEach((cb) => {
           if (!cb.checked) {
             cb.checked = true;
-            cb.dispatchEvent(new Event('change'));
+            cb.dispatchEvent(new Event("change"));
           }
         });
       } else {
@@ -580,7 +890,9 @@ document.addEventListener("DOMContentLoaded", function () {
     folderTree.classList.add("hidden");
     treeError.classList.add("hidden");
 
-    return fetch("/api/folder-tree?path=" + encodeURIComponent(path))
+    return fetch("/api/folder-tree?path=" + encodeURIComponent(path), {
+      credentials: "same-origin",
+    })
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
@@ -593,7 +905,6 @@ document.addEventListener("DOMContentLoaded", function () {
             // Initial load - render root
             renderTree(data.tree);
           }
-
 
           // Call callback if provided (used for highlighting after tree loads)
           if (callback) {
@@ -657,17 +968,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Container for children
       const childrenContainer = document.createElement("div");
-      childrenContainer.className = "hidden";
       childrenContainer.dataset.childrenFor = item.path;
+
+      // Check if this folder is already expanded (restore state after re-render)
+      const isExpanded = expandedFolders.has(item.path);
+      if (isExpanded) {
+        childrenContainer.className = ""; // Show children
+        arrow.classList.add("rotate-90"); // Rotate arrow
+      } else {
+        childrenContainer.className = "hidden"; // Hide children
+      }
 
       // Click handler for folders
       button.addEventListener("click", function (e) {
-
-        // Navigate to folder
-        navigateTo(item.path);
-
         // Toggle folder expand/collapse in sidebar
         toggleFolder(item.path, arrow, childrenContainer, level);
+
+        // Navigate to folder (skipExpand=true because we already toggled manually)
+        navigateTo(item.path, null, true);
 
         e.stopPropagation();
       });
@@ -694,9 +1012,10 @@ document.addEventListener("DOMContentLoaded", function () {
       span.className = "text-sm";
       button.appendChild(span);
 
-      // Click handler for files - show file info in main content
+      // Click handler for files - single click shows file info with preview/edit buttons
       button.addEventListener("click", function (e) {
-        displaySelectedFile(item);
+        // Navigate to file WITHOUT action (will show file info only)
+        navigateTo(item.path);
         e.stopPropagation();
       });
 
@@ -741,18 +1060,19 @@ document.addEventListener("DOMContentLoaded", function () {
       arrow.classList.remove("rotate-90");
       childrenContainer.classList.add("hidden");
       expandedFolders.delete(path);
+      // Clear children when collapsing to save memory
+      childrenContainer.innerHTML = "";
     } else {
       // Expand
       arrow.classList.add("rotate-90");
       childrenContainer.classList.remove("hidden");
       expandedFolders.add(path);
+
+      // Load children only when expanding
+      // Clear old data first, then load fresh data from FTP server
+      childrenContainer.innerHTML = "";
+      loadFolderChildren(path, childrenContainer, level + 1);
     }
-
-    // Always reload children to match main list view (both expand and collapse)
-    // This ensures tree always shows fresh data from FTP server
-    childrenContainer.innerHTML = ''; // Clear old data
-    loadFolderChildren(path, childrenContainer, level + 1);
-
   }
 
   /**
@@ -768,7 +1088,9 @@ document.addEventListener("DOMContentLoaded", function () {
       '<i class="fas fa-spinner fa-spin mr-2 text-base"></i>Loading...';
     container.appendChild(loading);
 
-    fetch("/api/folder-tree?path=" + encodeURIComponent(path))
+    fetch("/api/folder-tree?path=" + encodeURIComponent(path), {
+      credentials: "same-origin",
+    })
       .then((response) => response.json())
       .then((data) => {
         // Remove loading indicator
@@ -807,10 +1129,9 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Initial load - load tree first, then handle URL
-  loadFolderTree("/", function() {
+  loadFolderTree("/", function () {
     handleUrlChange();
   });
-
 
   // Sidebar Resize Functionality
   const sidebar = document.getElementById("sidebar");
@@ -891,7 +1212,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Fetch folder contents
-    return fetch("/api/folder-contents?path=" + encodeURIComponent(path))
+    return fetch("/api/folder-contents?path=" + encodeURIComponent(path), {
+      credentials: "same-origin",
+    })
       .then((response) => response.json())
       .then((data) => {
         // Hide loading
@@ -909,27 +1232,21 @@ document.addEventListener("DOMContentLoaded", function () {
             onComplete(data);
           }
         } else {
-          // Folder load failed - call callback so caller can handle error
+          // Folder load failed - call callback to handle error
           if (onComplete) {
             onComplete(data);
-          } else {
-            // Only show generic error if no callback provided (backwards compatibility)
-            if (contentEmpty) {
-              contentEmpty.classList.remove("hidden");
-              contentEmpty.innerHTML =
-                '<div class="text-center px-6"><i class="fas fa-exclamation-triangle text-red-500 text-6xl mb-4"></i><h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Error Loading Folder</h3><p class="text-gray-500 dark:text-gray-400">' +
-                (data.message || "Unable to load folder contents") +
-                "</p></div>";
-            }
           }
         }
       })
       .catch((error) => {
         if (contentLoading) contentLoading.classList.add("hidden");
-        if (contentEmpty) {
-          contentEmpty.classList.remove("hidden");
-          contentEmpty.innerHTML =
-            '<div class="text-center px-6"><i class="fas fa-exclamation-triangle text-red-500 text-6xl mb-4"></i><h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">Connection Error</h3><p class="text-gray-500 dark:text-gray-400">Unable to connect to server</p></div>';
+
+        // Call callback with error to handle it
+        if (onComplete) {
+          onComplete({
+            success: false,
+            message: "Unable to connect to server: " + error.message,
+          });
         }
       });
   }
@@ -938,22 +1255,12 @@ document.addEventListener("DOMContentLoaded", function () {
   window.loadFolderContents = loadFolderContents;
 
   /**
-   * Format file size to human readable format
-   */
-  function formatFileSize(bytes) {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  }
-
-  /**
    * Convert Unix permissions to octal format
    * Example: "drwxr-xr-x" -> "755"
    * Example: "-rw-r--r--" -> "644"
+   * NOTE: Made global because sortListView() needs access to it
    */
-  function convertPermissionsToOctal(permissions) {
+  window.convertPermissionsToOctal = function (permissions) {
     if (!permissions || permissions.length < 10) {
       return "-";
     }
@@ -973,12 +1280,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     return octal;
-  }
+  };
 
   /**
    * Display selected file in main content area
    */
-  function displaySelectedFile(file) {
+  window.displaySelectedFile = function (file) {
     // Close any open previews (image preview or code editor)
     closeAllPreviews();
 
@@ -1056,8 +1363,16 @@ document.addEventListener("DOMContentLoaded", function () {
                         <button onclick="previewFile('${escapeHtml(
                           file.path
                         )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
-                            <i class="fas ${isImageFile(file.name) ? 'fa-eye' : 'fa-pen-to-square'} text-sm"></i>
-                            <span>${isImageFile(file.name) ? 'Preview Image' : 'Edit File'}</span>
+                            <i class="fas ${
+                              isImageFile(file.name)
+                                ? "fa-eye"
+                                : "fa-pen-to-square"
+                            } text-sm"></i>
+                            <span>${
+                              isImageFile(file.name)
+                                ? "Preview Image"
+                                : "Edit File"
+                            }</span>
                         </button>
                     </div>
 
@@ -1078,31 +1393,31 @@ document.addEventListener("DOMContentLoaded", function () {
       contentEmpty.innerHTML = fileDisplay;
       contentEmpty.classList.remove("hidden");
     }
-  }
+  };
 
   /**
    * Display file not found error (red styled, same position as file preview)
    */
-  function displayFileNotFound(path) {
-
+  window.displayFileNotFound = function (
+    path,
+    errorMessage = "File not found"
+  ) {
     // Clear previous content and show empty state
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    
 
     if (contentLoading) contentLoading.classList.add("hidden");
     listView.classList.add("hidden");
-    
 
     // Get filename and extension
-    const fileName = path.substring(path.lastIndexOf('/') + 1);
-    const extension = fileName.split('.').pop().toLowerCase();
+    const fileName = path.substring(path.lastIndexOf("/") + 1);
+    const extension = fileName.split(".").pop().toLowerCase();
 
     // Get file icon (but make it red)
     const iconClasses = getFileIcon(fileName)
-      .replace(/text-\w+-\d+/g, 'text-red-500')
-      .replace(/dark:text-\w+-\d+/g, 'dark:text-red-400')
+      .replace(/text-\w+-\d+/g, "text-red-500")
+      .replace(/dark:text-\w+-\d+/g, "dark:text-red-400")
       .trim();
 
     // Create error display (same layout as normal file, but red)
@@ -1118,12 +1433,16 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
 
           <!-- File Name in Red -->
-          <h2 class="text-2xl font-bold text-red-600 dark:text-red-400 mb-3 break-all">${escapeHtml(fileName)}</h2>
+          <h2 class="text-2xl font-bold text-red-600 dark:text-red-400 mb-3 break-all">${escapeHtml(
+            fileName
+          )}</h2>
 
           <!-- Error Message -->
           <div class="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 mb-6">
             <i class="fas fa-exclamation-triangle text-lg"></i>
-            <span class="text-lg font-semibold">File not found</span>
+            <span class="text-lg font-semibold">${escapeHtml(
+              errorMessage
+            )}</span>
           </div>
 
           <!-- File Path -->
@@ -1141,45 +1460,49 @@ document.addEventListener("DOMContentLoaded", function () {
       contentEmpty.innerHTML = errorDisplay;
       contentEmpty.classList.remove("hidden");
     }
-  }
+  };
 
   /**
-   * Display path not found error (for completely invalid paths)
+   * Display folder not found error
    */
-  function displayPathNotFound(path) {
-
+  window.displayFolderNotFound = function (
+    path,
+    errorMessage = "Folder not found"
+  ) {
     // Clear previous content and show empty state
     const contentEmpty = document.getElementById("contentEmpty");
     const contentLoading = document.getElementById("contentLoading");
     const listView = document.getElementById("listView");
-    
 
     if (contentLoading) contentLoading.classList.add("hidden");
     listView.classList.add("hidden");
-    
 
-    // Determine if it's a file or folder based on extension
-    const isFile = path.includes('.') && !path.endsWith('/');
-    const iconClass = isFile
-      ? 'fas fa-file text-red-500 dark:text-red-400'
-      : 'fas fa-folder text-red-500 dark:text-red-400';
+    // Get folder name
+    const folderName = path.substring(path.lastIndexOf("/") + 1) || "/";
 
     // Create error display
     const errorDisplay = `
       <div class="flex items-center justify-center h-full">
         <div class="text-center px-8 max-w-2xl">
-          <!-- Red Icon (file or folder) -->
+          <!-- Red Folder Icon -->
           <div class="relative inline-block mb-6">
             <div class="absolute inset-0 bg-red-500 rounded-2xl blur-xl opacity-20 animate-pulse"></div>
             <div class="relative bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-xl border-2 border-red-300 dark:border-red-700">
-              <i class="${iconClass} text-7xl"></i>
+              <i class="fas fa-folder text-red-500 dark:text-red-400 text-7xl"></i>
             </div>
           </div>
+
+          <!-- Folder Name in Red -->
+          <h2 class="text-2xl font-bold text-red-600 dark:text-red-400 mb-3 break-all">${escapeHtml(
+            folderName
+          )}</h2>
 
           <!-- Error Message -->
           <div class="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 mb-6">
             <i class="fas fa-exclamation-triangle text-xl"></i>
-            <span class="text-xl font-semibold">Path not found</span>
+            <span class="text-xl font-semibold">${escapeHtml(
+              errorMessage
+            )}</span>
           </div>
 
           <!-- Path -->
@@ -1197,7 +1520,7 @@ document.addEventListener("DOMContentLoaded", function () {
       contentEmpty.innerHTML = errorDisplay;
       contentEmpty.classList.remove("hidden");
     }
-  }
+  };
 
   /**
    * Render folder/file contents in list view (table format)
@@ -1244,8 +1567,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /**
    * Create a list row for folder or file
+   * NOTE: This function is also used by sortListView() which is in global scope
    */
-  function createListRow(item, type, currentPath) {
+  window.createListRow = function (item, type, currentPath) {
     const row = document.createElement("tr");
     row.className =
       "hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition";
@@ -1259,14 +1583,13 @@ document.addEventListener("DOMContentLoaded", function () {
     checkbox.type = "checkbox";
     checkbox.className = "rounded border-gray-300 dark:border-gray-600";
 
-    // Check if this item is already in checkbox selection
-    if (window.checkedItems.has(item.path)) {
+    // Check if this item is already in selection (using NEW selection system)
+    const isSelected =
+      window.selectedItems &&
+      window.selectedItems.some((i) => i.path === item.path);
+    if (isSelected) {
       checkbox.checked = true;
-      row.classList.add(
-        "checkbox-selected",
-        "bg-primary-100",
-        "dark:bg-primary-900/30"
-      );
+      row.classList.add("bg-blue-50", "dark:bg-blue-900/20");
     }
 
     checkboxCell.appendChild(checkbox);
@@ -1274,42 +1597,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const extension = item.name.split(".").pop().toLowerCase();
 
-    // Checkbox change handler (checkbox selection only)
+    // Checkbox change handler (adds/removes from selection)
     checkbox.addEventListener("change", function (e) {
       e.stopPropagation();
 
-      if (checkbox.checked) {
-        // Add to checkbox selection (blue highlight)
-        checkboxSelectItem(item.path, item.name, type, extension);
-        row.classList.add(
-          "checkbox-selected",
-          "bg-primary-100",
-          "dark:bg-primary-900/30"
-        );
-      } else {
-        // Remove from checkbox selection
-        checkboxDeselectItem(item.path);
-        row.classList.remove(
-          "checkbox-selected",
-          "bg-primary-100",
-          "dark:bg-primary-900/30"
-        );
-      }
+      const itemData = {
+        path: item.path,
+        name: item.name,
+        type: type,
+        extension: extension,
+        size: item.size,
+        permissions: item.permissions,
+      };
 
-      // Update Select All checkbox state
-      updateSelectAllCheckboxState();
+      toggleItemSelection(itemData);
     });
 
-    // Row click handler (navigation focus only - NO checkbox toggle)
+    // Row click handler (single-click selection)
     row.addEventListener("click", function (e) {
       // If clicking on the checkbox cell, let the checkbox handler deal with it
       if (e.target === checkbox || e.target === checkboxCell) {
         return;
       }
 
-      // Set navigation focus (gray highlight)
-      setNavigationFocus(item.path);
-      row.classList.add("navigation-focused", "bg-gray-100", "dark:bg-gray-700/50");
+      const itemData = {
+        path: item.path,
+        name: item.name,
+        type: type,
+        extension: extension,
+        size: item.size,
+        permissions: item.permissions,
+      };
+
+      // Single click = select this item (replaces current selection)
+      selectItem(itemData);
     });
 
     // Row double-click handler (professional behavior)
@@ -1378,8 +1699,7 @@ document.addEventListener("DOMContentLoaded", function () {
     row.appendChild(permCell);
 
     return row;
-  }
-
+  };
 
   /**
    * Escape HTML to prevent XSS
@@ -1393,7 +1713,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /**
    * Highlight current path in sidebar tree
    */
-  window.highlightCurrentPath = function(path, expandParents = true) {
+  window.highlightCurrentPath = function (path, expandParents = true) {
     // If we need to expand parents, do it FIRST, then highlight
     if (expandParents) {
       expandParentFolders(path, () => {
@@ -1404,74 +1724,102 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Remove previous highlights
-    const previousHighlights = document.querySelectorAll('.sidebar-tree-item-active');
-    previousHighlights.forEach(el => {
-      el.classList.remove('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+    const previousHighlights = document.querySelectorAll(
+      ".sidebar-tree-item-active"
+    );
+    previousHighlights.forEach((el) => {
+      el.classList.remove(
+        "sidebar-tree-item-active",
+        "bg-blue-100",
+        "dark:bg-blue-900",
+        "text-blue-600",
+        "dark:text-blue-400"
+      );
     });
 
     // Find and highlight the current path
-    const sidebarItems = document.querySelectorAll('[data-path]');
+    const sidebarItems = document.querySelectorAll("[data-path]");
 
-    sidebarItems.forEach(item => {
-      const itemPath = item.getAttribute('data-path');
+    sidebarItems.forEach((item) => {
+      const itemPath = item.getAttribute("data-path");
 
       if (itemPath === path) {
         // Add highlight to the button inside the item, not the container
-        const button = item.querySelector('button');
+        const button = item.querySelector("button");
         if (button) {
-          button.classList.add('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+          button.classList.add(
+            "sidebar-tree-item-active",
+            "bg-blue-100",
+            "dark:bg-blue-900",
+            "text-blue-600",
+            "dark:text-blue-400"
+          );
         } else {
           // For files - highlight the whole div
-          item.classList.add('sidebar-tree-item-active', 'bg-blue-100', 'dark:bg-blue-900', 'text-blue-600', 'dark:text-blue-400');
+          item.classList.add(
+            "sidebar-tree-item-active",
+            "bg-blue-100",
+            "dark:bg-blue-900",
+            "text-blue-600",
+            "dark:text-blue-400"
+          );
         }
 
         // Scroll into view
-        item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        item.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
     });
-  }
+  };
 
   /**
    * Expand parent folders to make a path visible (one by one, sequentially)
    */
   async function expandParentFolders(path, onComplete = null) {
-    const parts = path.split('/').filter(p => p);
+    const parts = path.split("/").filter((p) => p);
 
     // Check if the target is a file (has extension)
-    const isTargetFile = path.includes('.') && !path.endsWith('/');
+    const isTargetFile = path.includes(".") && !path.endsWith("/");
 
     // If target is a file, only process parent folders (exclude the last part which is the filename)
     const partsToProcess = isTargetFile ? parts.slice(0, -1) : parts;
 
     // Expand folders one by one, SEQUENTIALLY
-    let currentPath = '';
+    let currentPath = "";
     for (let i = 0; i < partsToProcess.length; i++) {
-      currentPath += '/' + partsToProcess[i];
+      currentPath += "/" + partsToProcess[i];
 
-      const folderElement = document.querySelector(`[data-path="${currentPath}"]`);
+      const folderElement = document.querySelector(
+        `[data-path="${currentPath}"]`
+      );
 
-      if (folderElement && folderElement.dataset.type === 'directory') {
-
-        const button = folderElement.querySelector('button');
+      if (folderElement && folderElement.dataset.type === "directory") {
+        const button = folderElement.querySelector("button");
         if (!button) {
           continue;
         }
 
-        const arrow = button.querySelector('.folder-arrow');
-        const childrenContainer = folderElement.querySelector('[data-children-for]');
+        const arrow = button.querySelector(".folder-arrow");
+        const childrenContainer = folderElement.querySelector(
+          "[data-children-for]"
+        );
 
         if (arrow && childrenContainer) {
-          const isHidden = childrenContainer.classList.contains('hidden');
+          const isHidden = childrenContainer.classList.contains("hidden");
 
           if (isHidden) {
-            arrow.classList.add('rotate-90');
-            childrenContainer.classList.remove('hidden');
+            arrow.classList.add("rotate-90");
+            childrenContainer.classList.remove("hidden");
             expandedFolders.add(currentPath);
 
             // Load children if empty - WAIT for this to complete before continuing
             if (childrenContainer.children.length === 0) {
               await new Promise((resolve) => {
-                loadFolderChildren(currentPath, childrenContainer, i + 1, resolve);
+                loadFolderChildren(
+                  currentPath,
+                  childrenContainer,
+                  i + 1,
+                  resolve
+                );
               });
             }
           } else {
@@ -1501,12 +1849,14 @@ document.addEventListener("DOMContentLoaded", function () {
         const inputPath = pathInput.value.trim();
 
         if (!inputPath) {
-          alert("Please enter a path");
+          showDialog("Please enter a path");
           return;
         }
 
         // Normalize path (ensure it starts with /)
-        const normalizedPath = inputPath.startsWith('/') ? inputPath : '/' + inputPath;
+        const normalizedPath = inputPath.startsWith("/")
+          ? inputPath
+          : "/" + inputPath;
 
         // Navigate to path - URL is the single source of truth!
         navigateTo(normalizedPath);
@@ -1540,22 +1890,33 @@ let currentImageZoom = 1.0;
  * Check if file is an image based on extension
  */
 function isImageFile(filename) {
-  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'tif'];
-  const extension = filename.split('.').pop().toLowerCase();
+  const imageExtensions = [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "svg",
+    "webp",
+    "bmp",
+    "ico",
+    "tiff",
+    "tif",
+  ];
+  const extension = filename.split(".").pop().toLowerCase();
   return imageExtensions.includes(extension);
 }
 
 /**
  * Display image preview
  */
-function displayImagePreview(fileData) {
+window.displayImagePreview = function (fileData) {
   currentImagePath = fileData.path;
   currentImageZoom = 1.0;
 
   // Hide other views
   document.getElementById("contentEmpty").classList.add("hidden");
   document.getElementById("listView").classList.add("hidden");
-  
+
   document.getElementById("editorView").classList.add("hidden");
 
   // Switch toolbars - hide normal toolbar (like editor does)
@@ -1567,16 +1928,19 @@ function displayImagePreview(fileData) {
 
   // Update image info immediately
   document.getElementById("imagePreviewFileName").textContent = fileData.name;
-  document.getElementById("imagePreviewInfo").textContent = `${formatFileSize(fileData.size)} • Loading...`;
+  document.getElementById("imagePreviewInfo").textContent = `${formatFileSize(
+    fileData.size
+  )} • Loading...`;
 
   // Get image container and show loading state
   const img = document.getElementById("imagePreviewImg");
   const imageContainer = img.parentElement;
 
   // Create loading overlay
-  const loadingOverlay = document.createElement('div');
-  loadingOverlay.id = 'imageLoadingOverlay';
-  loadingOverlay.className = 'absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 z-10';
+  const loadingOverlay = document.createElement("div");
+  loadingOverlay.id = "imageLoadingOverlay";
+  loadingOverlay.className =
+    "absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 z-10";
   loadingOverlay.innerHTML = `
     <div class="flex flex-col items-center space-y-4">
       <!-- Elegant spinner -->
@@ -1590,35 +1954,37 @@ function displayImagePreview(fileData) {
   `;
 
   // Remove any existing loading overlay
-  const existingOverlay = document.getElementById('imageLoadingOverlay');
+  const existingOverlay = document.getElementById("imageLoadingOverlay");
   if (existingOverlay) {
     existingOverlay.remove();
   }
 
   // Add loading overlay
-  imageContainer.style.position = 'relative';
+  imageContainer.style.position = "relative";
   imageContainer.appendChild(loadingOverlay);
 
   // Clear previous image immediately to prevent showing old content
-  img.src = '';
+  img.src = "";
   img.style.transform = "scale(1)";
 
   // Load new image
-  img.onload = function() {
+  img.onload = function () {
     // Remove loading overlay
-    const overlay = document.getElementById('imageLoadingOverlay');
+    const overlay = document.getElementById("imageLoadingOverlay");
     if (overlay) {
       overlay.remove();
     }
 
     // Update info with dimensions
     const info = document.getElementById("imagePreviewInfo");
-    info.textContent = `${formatFileSize(fileData.size)} • ${img.naturalWidth} × ${img.naturalHeight} px`;
+    info.textContent = `${formatFileSize(fileData.size)} • ${
+      img.naturalWidth
+    } × ${img.naturalHeight} px`;
   };
 
-  img.onerror = function() {
+  img.onerror = function () {
     // Remove loading overlay
-    const overlay = document.getElementById('imageLoadingOverlay');
+    const overlay = document.getElementById("imageLoadingOverlay");
     if (overlay) {
       overlay.remove();
     }
@@ -1637,7 +2003,7 @@ function displayImagePreview(fileData) {
   // Set image source (triggers loading)
   img.src = `/api/file/image?path=${encodeURIComponent(fileData.path)}`;
   img.alt = fileData.name;
-}
+};
 
 /**
  * Zoom image in
@@ -1672,9 +2038,9 @@ function resetImageZoom() {
 function downloadImage() {
   if (!currentImagePath) return;
 
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = `/api/file/image?path=${encodeURIComponent(currentImagePath)}`;
-  link.download = currentImagePath.split('/').pop();
+  link.download = currentImagePath.split("/").pop();
   link.click();
 }
 
@@ -1689,7 +2055,9 @@ function closeImagePreview() {
   document.getElementById("fileManagerToolbar").classList.remove("hidden");
 
   // Navigate to parent folder
-  const currentPath = currentImagePath ? currentImagePath.substring(0, currentImagePath.lastIndexOf('/')) || '/' : '/';
+  const currentPath = currentImagePath
+    ? currentImagePath.substring(0, currentImagePath.lastIndexOf("/")) || "/"
+    : "/";
   currentImagePath = null;
 
   navigateTo(currentPath);
@@ -1704,8 +2072,8 @@ function closeImagePreview() {
  * Requires SSH connection to be enabled in config
  */
 function zipSelectedFiles() {
-  if (!window.selectedFiles || window.selectedFiles.length === 0) {
-    alert('Please select at least one file or folder to zip.');
+  if (!window.selectedItems || window.selectedItems.length === 0) {
+    showDialog("Please select at least one file or folder to zip.");
     return;
   }
 
@@ -1715,7 +2083,11 @@ function zipSelectedFiles() {
   // 2. Create zip archive using command-line tools
   // 3. Return success/failure status
 
-  alert(`Zip functionality coming soon!\n\nSelected ${window.selectedFiles.length} item(s):\n${window.selectedFiles.map(f => f.name).join('\n')}`);
+  showDialog(
+    `Zip functionality coming soon!\n\nSelected ${
+      window.selectedItems.length
+    } item(s):\n${window.selectedItems.map((f) => f.name).join("\n")}`
+  );
 }
 
 /**
@@ -1723,19 +2095,19 @@ function zipSelectedFiles() {
  * Requires SSH connection and exactly 1 zip file selected
  */
 function unzipSelectedFile() {
-  if (!window.selectedFiles || window.selectedFiles.length !== 1) {
-    alert('Please select exactly one archive file to unzip.');
+  if (!window.selectedItems || window.selectedItems.length !== 1) {
+    showDialog("Please select exactly one archive file to unzip.");
     return;
   }
 
-  const selectedFile = window.selectedFiles[0];
-  const zipExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'tgz', 'xz'];
+  const selectedFile = window.selectedItems[0];
+  const zipExtensions = ["zip", "tar", "gz", "bz2", "7z", "rar", "tgz", "xz"];
+  const extension = selectedFile.name.split(".").pop().toLowerCase();
 
-  if (!zipExtensions.includes(selectedFile.extension.toLowerCase())) {
-    alert('Selected file is not a supported archive format.');
+  if (!zipExtensions.includes(extension)) {
+    showDialog("Selected file is not a supported archive format.");
     return;
   }
-
 
   // TODO: Implement SSH-based unzip operation
   // This will require:
@@ -1744,19 +2116,22 @@ function unzipSelectedFile() {
   // 3. Handle different archive formats
   // 4. Return success/failure status
 
-  alert(`Unzip functionality coming soon!\n\nArchive: ${selectedFile.name}\nFormat: ${selectedFile.extension.toUpperCase()}`);
+  showDialog(
+    `Unzip functionality coming soon!\n\nArchive: ${
+      selectedFile.name
+    }\nFormat: ${extension.toUpperCase()}`
+  );
 }
 
 /**
  * Move selected files/folders to another directory
  * Requires SSH connection to be enabled in config
  */
-function moveSelectedFiles() {
-  if (!window.selectedFiles || window.selectedFiles.length === 0) {
-    alert('Please select at least one file or folder to move.');
+async function moveSelectedFiles() {
+  if (!window.selectedItems || window.selectedItems.length === 0) {
+    showDialog("Please select at least one file or folder to move.");
     return;
   }
-
 
   // TODO: Implement SSH-based move operation
   // This will require:
@@ -1767,10 +2142,18 @@ function moveSelectedFiles() {
   // 5. Return success/failure status
 
   // Placeholder: Show move dialog
-  const destination = prompt(`Move ${window.selectedFiles.length} item(s) to:\n\n${window.selectedFiles.map(f => f.name).join('\n')}\n\nEnter destination path:`);
+  const destination = await showPrompt(
+    `Move ${window.selectedItems.length} item(s) to:\n\n${window.selectedItems
+      .map((f) => f.name)
+      .join("\n")}\n\nEnter destination path:`,
+    "",
+    "Move Items"
+  );
 
   if (destination) {
-    alert(`Move functionality coming soon!\n\nWould move to: ${destination}`);
+    showDialog(
+      `Move functionality coming soon!\n\nWould move to: ${destination}`
+    );
   }
 }
 
@@ -1782,7 +2165,500 @@ function moveSelectedFiles() {
  */
 
 // Listen to custom urlchange event (dispatched by navigateTo)
-window.addEventListener('urlchange', handleUrlChange);
+window.addEventListener("urlchange", handleUrlChange);
 
 // Listen to popstate (back/forward buttons)
-window.addEventListener('popstate', handleUrlChange);
+window.addEventListener("popstate", handleUrlChange);
+
+/**
+ * ============================================================================
+ * CREATE NEW FILE/FOLDER
+ * ============================================================================
+ */
+
+/**
+ * Create new file in current folder
+ */
+async function createNewFile() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentPath = urlParams.get("path") || "/";
+
+  // Prompt for filename
+  const filename = await showPrompt(
+    "Enter file name (with extension):\n\nExample: index.php, style.css, readme.txt",
+    "",
+    "Create New File"
+  );
+
+  if (!filename || filename.trim() === "") {
+    return; // User cancelled or empty input
+  }
+
+  // Validate filename
+  const trimmedFilename = filename.trim();
+  if (trimmedFilename.includes("/") || trimmedFilename.includes("\\")) {
+    showDialog("Invalid file name: Cannot contain slashes (/ or \\)");
+    return;
+  }
+
+  try {
+    // Get CSRF token
+    const tokenResponse = await fetch("/api/csrf-token", {
+      credentials: "same-origin",
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
+
+    const csrfToken = tokenData.csrf_token;
+
+    // Create form data
+    const params = new URLSearchParams();
+    params.append("path", currentPath);
+    params.append("filename", trimmedFilename);
+    params.append("_csrf_token", csrfToken);
+
+    // Send create request
+    const response = await fetch("/api/file/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Reload tree sidebar to show new file
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          // After tree reloads, refresh current folder view
+          handleUrlChange();
+        });
+      } else {
+        handleUrlChange();
+      }
+
+      // Optionally open the file for editing
+      const shouldEdit = await showConfirm(
+        "File created successfully. Do you want to edit it now?",
+        "File Created"
+      );
+      if (shouldEdit) {
+        navigateTo(data.path, "edit");
+      }
+    } else {
+      showDialog("Failed to create file: " + (data.message || "Unknown error"));
+    }
+  } catch (error) {
+    showDialog("Failed to create file: " + error.message);
+  }
+}
+
+/**
+ * Create new folder in current folder
+ */
+async function createNewFolder() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentPath = urlParams.get("path") || "/";
+
+  // Prompt for folder name
+  const foldername = await showPrompt(
+    "Enter folder name:\n\nExample: images, css, backups",
+    "",
+    "Create New Folder"
+  );
+
+  if (!foldername || foldername.trim() === "") {
+    return; // User cancelled or empty input
+  }
+
+  // Validate foldername
+  const trimmedFoldername = foldername.trim();
+  if (trimmedFoldername.includes("/") || trimmedFoldername.includes("\\")) {
+    showDialog("Invalid folder name: Cannot contain slashes (/ or \\)");
+    return;
+  }
+
+  try {
+    // Get CSRF token
+    const tokenResponse = await fetch("/api/csrf-token", {
+      credentials: "same-origin",
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
+
+    const csrfToken = tokenData.csrf_token;
+
+    // Create form data
+    const params = new URLSearchParams();
+    params.append("path", currentPath);
+    params.append("foldername", trimmedFoldername);
+    params.append("_csrf_token", csrfToken);
+
+    // Send create request
+    const response = await fetch("/api/folder/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Reload tree sidebar to show new folder
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          // After tree reloads, refresh current folder view
+          handleUrlChange();
+        });
+      } else {
+        handleUrlChange();
+      }
+
+      // Optionally navigate to the new folder
+      const shouldOpen = await showConfirm(
+        "Folder created successfully. Do you want to open it?",
+        "Folder Created"
+      );
+      if (shouldOpen) {
+        navigateTo(data.path);
+      }
+    } else {
+      showDialog(
+        "Failed to create folder: " + (data.message || "Unknown error")
+      );
+    }
+  } catch (error) {
+    showDialog("Failed to create folder: " + error.message);
+  }
+}
+
+/**
+ * Navigate to parent folder
+ */
+function navigateToParent() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentPath = urlParams.get("path") || "/";
+
+  // Don't navigate if already at root
+  if (currentPath === "/" || currentPath === "") {
+    return;
+  }
+
+  // Get parent path
+  const parentPath =
+    currentPath.substring(0, currentPath.lastIndexOf("/")) || "/";
+
+  // Navigate to parent
+  navigateTo(parentPath);
+}
+
+/**
+ * Update parent folder button visibility
+ */
+function updateParentButtonVisibility() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentPath = urlParams.get("path") || "/";
+  const parentBtn = document.getElementById("parentFolderBtn");
+
+  if (!parentBtn) return;
+
+  // Show button only if not at root
+  if (currentPath === "/" || currentPath === "") {
+    parentBtn.classList.add("hidden");
+  } else {
+    parentBtn.classList.remove("hidden");
+  }
+}
+
+/**
+ * ============================================================================
+ * RENAME FILE/FOLDER
+ * ============================================================================
+ */
+
+/**
+ * Rename selected file or folder
+ */
+async function renameSelected() {
+  // Check selection - should be exactly 1 item (button should be disabled otherwise)
+  if (window.selectedItems.length !== 1) {
+    showDialog("Please select exactly one item to rename.");
+    return;
+  }
+
+  const item = window.selectedItems[0];
+  const itemToRename = item.path;
+  const itemType = item.type;
+  const currentName = item.name;
+
+  // Prompt for new name
+  const promptMessage =
+    itemType === "file"
+      ? `Current name: ${currentName}\n\nEnter new name (with extension):`
+      : `Current name: ${currentName}\n\nEnter new name:`;
+
+  const promptTitle = itemType === "file" ? "Rename File" : "Rename Folder";
+  const newName = await showPrompt(promptMessage, currentName, promptTitle);
+
+  if (!newName || newName.trim() === "") {
+    return; // User cancelled or empty input
+  }
+
+  const trimmedNewName = newName.trim();
+
+  // Check if name actually changed
+  if (trimmedNewName === currentName) {
+    showDialog("The name is the same. No changes made.");
+    return;
+  }
+
+  // Validate new name
+  if (trimmedNewName.includes("/") || trimmedNewName.includes("\\")) {
+    showDialog("Invalid name: Cannot contain slashes (/ or \\)");
+    return;
+  }
+
+  try {
+    // Get CSRF token
+    const tokenResponse = await fetch("/api/csrf-token", {
+      credentials: "same-origin",
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
+
+    const csrfToken = tokenData.csrf_token;
+
+    // Create form data
+    const params = new URLSearchParams();
+    params.append("old_path", itemToRename);
+    params.append("new_name", trimmedNewName);
+    params.append("_csrf_token", csrfToken);
+
+    // Send rename request
+    const response = await fetch("/api/rename", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Reload tree sidebar to show renamed item
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          // Navigate to parent folder to show the renamed item in list
+          navigateTo(data.parent_path);
+        });
+      } else {
+        // Fallback: navigate to parent folder
+        navigateTo(data.parent_path);
+      }
+
+      showDialog(
+        `${itemType === "file" ? "File" : "Folder"} renamed successfully!`
+      );
+    } else {
+      showDialog("Failed to rename: " + (data.message || "Unknown error"));
+    }
+  } catch (error) {
+    showDialog("Failed to rename: " + error.message);
+  }
+}
+
+/**
+ * ============================================================================
+ * DELETE SELECTED FILES/FOLDERS
+ * ============================================================================
+ */
+
+/**
+ * Delete selected files and/or folders
+ */
+async function deleteSelected() {
+  // Check selection
+  if (!window.selectedItems || window.selectedItems.length === 0) {
+    showDialog("Please select at least one item to delete.");
+    return;
+  }
+
+  const itemCount = window.selectedItems.length;
+  const itemList = window.selectedItems
+    .map((item) => `  • ${item.name}`)
+    .join("\n");
+
+  // Confirm deletion
+  const confirmed = await showConfirm(
+    `Are you sure you want to delete ${itemCount} item(s)?\n\n${itemList}\n\nThis action cannot be undone!`,
+    "Confirm Deletion"
+  );
+
+  if (!confirmed) {
+    return; // User cancelled
+  }
+
+  try {
+    // Get CSRF token
+    const tokenResponse = await fetch("/api/csrf-token", {
+      credentials: "same-origin",
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
+
+    const csrfToken = tokenData.csrf_token;
+
+    // Delete each item
+    let successCount = 0;
+    let failedItems = [];
+
+    for (const item of window.selectedItems) {
+      try {
+        const params = new URLSearchParams();
+        params.append("path", item.path);
+        params.append("_csrf_token", csrfToken);
+
+        const response = await fetch("/api/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          successCount++;
+        } else {
+          failedItems.push(`${item.name}: ${data.message || "Unknown error"}`);
+        }
+      } catch (error) {
+        failedItems.push(`${item.name}: ${error.message}`);
+      }
+    }
+
+    // Show results
+    if (failedItems.length === 0) {
+      // All deleted successfully
+      showDialog(`Successfully deleted ${successCount} item(s)!`);
+
+      // Reload tree and refresh current folder
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          handleUrlChange();
+        });
+      } else {
+        handleUrlChange();
+      }
+
+      // Clear selection
+      clearSelection();
+    } else if (successCount > 0) {
+      // Some succeeded, some failed
+      showDialog(
+        `Deleted ${successCount} item(s).\n\nFailed to delete ${
+          failedItems.length
+        } item(s):\n${failedItems.join("\n")}`
+      );
+
+      // Reload tree and refresh current folder
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          handleUrlChange();
+        });
+      } else {
+        handleUrlChange();
+      }
+    } else {
+      // All failed
+      showDialog(`Failed to delete items:\n\n${failedItems.join("\n")}`);
+    }
+  } catch (error) {
+    showDialog("Failed to delete: " + error.message);
+  }
+}
+
+/**
+ * ============================================================================
+ * DOWNLOAD SELECTED FILES
+ * ============================================================================
+ */
+
+/**
+ * Download selected file(s)
+ */
+async function downloadSelected() {
+  // Check selection
+  if (!window.selectedItems || window.selectedItems.length === 0) {
+    showDialog("Please select at least one file to download.");
+    return;
+  }
+
+  // Filter out folders - only allow files
+  const files = window.selectedItems.filter((item) => item.type === "file");
+
+  if (files.length === 0) {
+    showDialog(
+      "Please select at least one file to download.\n\nNote: Folders cannot be downloaded directly."
+    );
+    return;
+  }
+
+  if (files.length !== window.selectedItems.length) {
+    const folderCount = window.selectedItems.length - files.length;
+    const proceed = await showConfirm(
+      `You have selected ${folderCount} folder(s) which cannot be downloaded.\n\nDo you want to download only the ${files.length} selected file(s)?`,
+      "Download Files"
+    );
+
+    if (!proceed) {
+      return;
+    }
+  }
+
+  // Download each file
+  for (const file of files) {
+    try {
+      // Create a temporary link and trigger download
+      const link = document.createElement("a");
+      link.href = `/api/file/download?path=${encodeURIComponent(file.path)}`;
+      link.download = file.name;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Small delay between downloads to avoid browser blocking
+      if (files.length > 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    } catch (error) {
+      console.error(`Failed to download ${file.name}:`, error);
+    }
+  }
+
+  // Show success message
+  if (files.length === 1) {
+    showDialog(`Downloading: ${files[0].name}`);
+  } else {
+    showDialog(`Downloading ${files.length} file(s)...`);
+  }
+}

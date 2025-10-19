@@ -722,4 +722,509 @@ class FileManagerController
         }
     }
 
+    /**
+     * Create new file via FTP
+     */
+    public function createFile(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token', '');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
+            return;
+        }
+
+        // Get parameters
+        $path = $this->request->post('path', '');
+        $filename = $this->request->post('filename', '');
+
+        if (empty($path) || empty($filename)) {
+            $this->response->json(['success' => false, 'message' => 'Path and filename are required']);
+            return;
+        }
+
+        // Sanitize filename - remove any path traversal attempts
+        $filename = basename($filename);
+        if (empty($filename) || $filename === '.' || $filename === '..') {
+            $this->response->json(['success' => false, 'message' => 'Invalid filename']);
+            return;
+        }
+
+        // Build full path
+        $fullPath = rtrim($path, '/') . '/' . $filename;
+
+        try {
+            // Get FTP connection details from session
+            $ftpHost = $this->config['ftp']['server']['host'];
+            $ftpPort = $this->config['ftp']['server']['port'];
+            $ftpUser = $this->session->get('ftp_username');
+            $ftpPass = $this->session->get('ftp_password');
+            $useSsl = $this->config['ftp']['server']['use_ssl'];
+            $timeout = $this->config['ftp']['timeout'];
+
+            // Connect to FTP
+            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
+
+            if (!$conn) {
+                throw new \Exception('Could not connect to FTP server');
+            }
+
+            // Login
+            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
+                ftp_close($conn);
+                throw new \Exception('FTP login failed');
+            }
+
+            // Set passive mode
+            if ($this->config['ftp']['server']['passive_mode']) {
+                ftp_pasv($conn, true);
+            }
+
+            // Check if file already exists
+            $size = @ftp_size($conn, $fullPath);
+            if ($size >= 0) {
+                ftp_close($conn);
+                $this->response->json(['success' => false, 'message' => 'File already exists']);
+                return;
+            }
+
+            // Create empty file by uploading empty content
+            $tempFile = tmpfile();
+            $tempFilePath = stream_get_meta_data($tempFile)['uri'];
+
+            if (!@ftp_fput($conn, $fullPath, $tempFile, FTP_BINARY)) {
+                fclose($tempFile);
+                ftp_close($conn);
+                throw new \Exception('Failed to create file on FTP server');
+            }
+
+            fclose($tempFile);
+            ftp_close($conn);
+
+            Logger::ftp('create_file', ['path' => $fullPath], true);
+
+            $this->response->json([
+                'success' => true,
+                'message' => 'File created successfully',
+                'path' => $fullPath
+            ]);
+
+        } catch (\Exception $e) {
+            Logger::error('Create file error', [
+                'path' => $fullPath,
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Create new folder via FTP
+     */
+    public function createFolder(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token', '');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
+            return;
+        }
+
+        // Get parameters
+        $path = $this->request->post('path', '');
+        $foldername = $this->request->post('foldername', '');
+
+        if (empty($path) || empty($foldername)) {
+            $this->response->json(['success' => false, 'message' => 'Path and folder name are required']);
+            return;
+        }
+
+        // Sanitize foldername - remove any path traversal attempts
+        $foldername = basename($foldername);
+        if (empty($foldername) || $foldername === '.' || $foldername === '..') {
+            $this->response->json(['success' => false, 'message' => 'Invalid folder name']);
+            return;
+        }
+
+        // Build full path
+        $fullPath = rtrim($path, '/') . '/' . $foldername;
+
+        try {
+            // Get FTP connection details from session
+            $ftpHost = $this->config['ftp']['server']['host'];
+            $ftpPort = $this->config['ftp']['server']['port'];
+            $ftpUser = $this->session->get('ftp_username');
+            $ftpPass = $this->session->get('ftp_password');
+            $useSsl = $this->config['ftp']['server']['use_ssl'];
+            $timeout = $this->config['ftp']['timeout'];
+
+            // Connect to FTP
+            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
+
+            if (!$conn) {
+                throw new \Exception('Could not connect to FTP server');
+            }
+
+            // Login
+            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
+                ftp_close($conn);
+                throw new \Exception('FTP login failed');
+            }
+
+            // Set passive mode
+            if ($this->config['ftp']['server']['passive_mode']) {
+                ftp_pasv($conn, true);
+            }
+
+            // Create folder
+            if (!@ftp_mkdir($conn, $fullPath)) {
+                ftp_close($conn);
+                throw new \Exception('Failed to create folder on FTP server (may already exist)');
+            }
+
+            ftp_close($conn);
+
+            Logger::ftp('create_folder', ['path' => $fullPath], true);
+
+            $this->response->json([
+                'success' => true,
+                'message' => 'Folder created successfully',
+                'path' => $fullPath
+            ]);
+
+        } catch (\Exception $e) {
+            Logger::error('Create folder error', [
+                'path' => $fullPath,
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Rename file or folder via FTP
+     */
+    public function rename(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token', '');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
+            return;
+        }
+
+        // Get parameters
+        $oldPath = $this->request->post('old_path', '');
+        $newName = $this->request->post('new_name', '');
+
+        if (empty($oldPath) || empty($newName)) {
+            $this->response->json(['success' => false, 'message' => 'Old path and new name are required']);
+            return;
+        }
+
+        // Sanitize new name - remove any path traversal attempts
+        $newName = basename($newName);
+        if (empty($newName) || $newName === '.' || $newName === '..') {
+            $this->response->json(['success' => false, 'message' => 'Invalid name']);
+            return;
+        }
+
+        // Build new path (same directory, different name)
+        $parentPath = dirname($oldPath);
+        $newPath = ($parentPath === '/' || $parentPath === '.')
+            ? '/' . $newName
+            : $parentPath . '/' . $newName;
+
+        try {
+            // Get FTP connection details from session
+            $ftpHost = $this->config['ftp']['server']['host'];
+            $ftpPort = $this->config['ftp']['server']['port'];
+            $ftpUser = $this->session->get('ftp_username');
+            $ftpPass = $this->session->get('ftp_password');
+            $useSsl = $this->config['ftp']['server']['use_ssl'];
+            $timeout = $this->config['ftp']['timeout'];
+
+            // Connect to FTP
+            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
+
+            if (!$conn) {
+                throw new \Exception('Could not connect to FTP server');
+            }
+
+            // Login
+            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
+                ftp_close($conn);
+                throw new \Exception('FTP login failed');
+            }
+
+            // Set passive mode
+            if ($this->config['ftp']['server']['passive_mode']) {
+                ftp_pasv($conn, true);
+            }
+
+            // Check if new name already exists
+            $size = @ftp_size($conn, $newPath);
+            $rawList = @ftp_rawlist($conn, $newPath);
+            if ($size >= 0 || ($rawList !== false && count($rawList) > 0)) {
+                ftp_close($conn);
+                $this->response->json(['success' => false, 'message' => 'A file or folder with this name already exists']);
+                return;
+            }
+
+            // Rename the file/folder
+            if (!@ftp_rename($conn, $oldPath, $newPath)) {
+                ftp_close($conn);
+                throw new \Exception('Failed to rename - please check permissions');
+            }
+
+            ftp_close($conn);
+
+            Logger::ftp('rename', ['from' => $oldPath, 'to' => $newPath], true);
+
+            $this->response->json([
+                'success' => true,
+                'message' => 'Renamed successfully',
+                'old_path' => $oldPath,
+                'new_path' => $newPath,
+                'parent_path' => $parentPath === '.' ? '/' : $parentPath
+            ]);
+
+        } catch (\Exception $e) {
+            Logger::error('Rename error', [
+                'old_path' => $oldPath,
+                'new_name' => $newName,
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete file or folder
+     */
+    public function delete(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Not authenticated']);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token');
+        if (!$this->session->validateCsrfToken($csrfToken)) {
+            Logger::warning('CSRF validation failed for delete', [
+                'user' => $this->session->get('ftp_username'),
+                'ip' => $this->request->ip()
+            ]);
+            $this->response->json(['success' => false, 'message' => 'Invalid security token']);
+            return;
+        }
+
+        try {
+            $path = $this->request->post('path');
+
+            // Validate path
+            if (empty($path)) {
+                $this->response->json(['success' => false, 'message' => 'Path is required']);
+                return;
+            }
+
+            // Sanitize path
+            $path = $this->sanitizePath($path);
+
+            // Get FTP connection from session
+            $ftpConnection = $this->session->get('ftp_connection');
+            if (!$ftpConnection || !is_resource($ftpConnection)) {
+                $this->response->json(['success' => false, 'message' => 'FTP connection lost. Please login again.']);
+                return;
+            }
+
+            // Check if path exists and determine if it's a file or directory
+            $isDir = @ftp_nlist($ftpConnection, $path) !== false;
+
+            if ($isDir) {
+                // It's a directory - delete recursively
+                $deleted = $this->deleteFtpDirectory($ftpConnection, $path);
+            } else {
+                // It's a file - delete directly
+                $deleted = @ftp_delete($ftpConnection, $path);
+            }
+
+            if ($deleted) {
+                Logger::info('Item deleted successfully', [
+                    'user' => $this->session->get('ftp_username'),
+                    'path' => $path,
+                    'type' => $isDir ? 'directory' : 'file'
+                ]);
+                $this->response->json([
+                    'success' => true,
+                    'message' => $isDir ? 'Folder deleted successfully' : 'File deleted successfully'
+                ]);
+            } else {
+                $this->response->json([
+                    'success' => false,
+                    'message' => 'Failed to delete item. It may not exist or you may not have permission.'
+                ]);
+            }
+
+        } catch (\Exception $e) {
+            Logger::error('Delete error', [
+                'path' => $path ?? 'unknown',
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Recursively delete FTP directory
+     */
+    private function deleteFtpDirectory($ftpConnection, string $dir): bool
+    {
+        // Get directory contents
+        $files = @ftp_nlist($ftpConnection, $dir);
+
+        if ($files === false) {
+            return false;
+        }
+
+        // Filter out . and ..
+        $files = array_filter($files, function($file) use ($dir) {
+            $basename = basename($file);
+            return $basename !== '.' && $basename !== '..';
+        });
+
+        // Delete each item
+        foreach ($files as $file) {
+            // Check if it's a directory
+            $isDir = @ftp_nlist($ftpConnection, $file) !== false;
+
+            if ($isDir) {
+                // Recursively delete subdirectory
+                if (!$this->deleteFtpDirectory($ftpConnection, $file)) {
+                    return false;
+                }
+            } else {
+                // Delete file
+                if (!@ftp_delete($ftpConnection, $file)) {
+                    return false;
+                }
+            }
+        }
+
+        // Finally, remove the empty directory
+        return @ftp_rmdir($ftpConnection, $dir);
+    }
+
+    /**
+     * Download file
+     */
+    public function downloadFile(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            http_response_code(403);
+            echo 'Not authenticated';
+            return;
+        }
+
+        try {
+            $path = $this->request->get('path');
+
+            // Validate path
+            if (empty($path)) {
+                http_response_code(400);
+                echo 'Path is required';
+                return;
+            }
+
+            // Sanitize path
+            $path = $this->sanitizePath($path);
+
+            // Get FTP connection from session
+            $ftpConnection = $this->session->get('ftp_connection');
+            if (!$ftpConnection || !is_resource($ftpConnection)) {
+                http_response_code(500);
+                echo 'FTP connection lost. Please login again.';
+                return;
+            }
+
+            // Get file size
+            $size = @ftp_size($ftpConnection, $path);
+            if ($size === -1) {
+                http_response_code(404);
+                echo 'File not found';
+                return;
+            }
+
+            // Create temporary file
+            $tempFile = tempnam(sys_get_temp_dir(), 'webftp_');
+
+            // Download file from FTP to temp location
+            $downloaded = @ftp_get($ftpConnection, $tempFile, $path, FTP_BINARY);
+
+            if (!$downloaded) {
+                @unlink($tempFile);
+                http_response_code(500);
+                echo 'Failed to download file from FTP server';
+                return;
+            }
+
+            // Get filename
+            $filename = basename($path);
+
+            // Set headers for file download
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($tempFile));
+            header('Cache-Control: no-cache, must-revalidate');
+            header('Pragma: public');
+
+            // Output file
+            readfile($tempFile);
+
+            // Clean up temp file
+            @unlink($tempFile);
+
+            Logger::info('File downloaded', [
+                'user' => $this->session->get('ftp_username'),
+                'path' => $path,
+                'size' => $size
+            ]);
+
+        } catch (\Exception $e) {
+            Logger::error('Download error', [
+                'path' => $path ?? 'unknown',
+                'message' => $e->getMessage()
+            ]);
+            http_response_code(500);
+            echo 'Download failed: ' . $e->getMessage();
+        }
+    }
+
 }

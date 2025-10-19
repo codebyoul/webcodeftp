@@ -41,6 +41,9 @@
     </script>
 
     <!-- Pass PHP variables to JavaScript -->
+    <!-- API Interceptor - MUST load FIRST to handle 401 responses -->
+    <script src="/js/api-interceptor.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0') ?>"></script>
+
     <script>
         // Global configuration from PHP
         window.FILE_ICON_CONFIG = <?= json_encode($file_icons) ?>;
@@ -173,8 +176,8 @@
                 </div>
 
                 <!-- Status Bar -->
-                <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                <div id="statusBar" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+                    <p id="statusBarText" class="text-sm text-gray-500 dark:text-gray-400 font-medium transition-colors duration-200">
                         <span id="selectedCount">0</span> <?= t('items_selected', 'items selected') ?>
                     </p>
                 </div>
@@ -195,19 +198,22 @@
                             <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('upload_file', 'Upload File') ?>">
                                 <i class="fas fa-upload"></i>
                             </button>
-                            <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('download', 'Download') ?>">
+                            <button onclick="downloadSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('download', 'Download') ?>">
                                 <i class="fas fa-download"></i>
                             </button>
-                            <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_file', 'New File') ?>">
+                            <button onclick="createNewFile()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_file', 'New File') ?>">
                                 <i class="fas fa-file-circle-plus"></i>
                             </button>
-                            <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_folder', 'New Folder') ?>">
+                            <button onclick="createNewFolder()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_folder', 'New Folder') ?>">
                                 <i class="fas fa-folder-plus"></i>
                             </button>
-                            <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('delete', 'Delete') ?>">
+                            <button id="parentFolderBtn" onclick="navigateToParent()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition hidden" title="<?= t('parent_folder', 'Parent Folder') ?>">
+                                <i class="fas fa-level-up-alt"></i>
+                            </button>
+                            <button onclick="deleteSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('delete', 'Delete') ?>">
                                 <i class="fas fa-trash"></i>
                             </button>
-                            <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('rename', 'Rename') ?>">
+                            <button onclick="renameSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('rename', 'Rename') ?>">
                                 <i class="fas fa-pen"></i>
                             </button>
                             <button id="refreshBtn" onclick="refreshCurrentFolder()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('refresh', 'Refresh') ?>">
@@ -415,6 +421,32 @@
 
             </div>
         </main>
+        </div>
+    </div>
+
+    <!-- Custom Dialog Modal -->
+    <div id="customDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 transition-opacity duration-200">
+        <div id="customDialogBox" class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full mx-4 transform transition-transform duration-200 scale-95">
+            <!-- Dialog Header -->
+            <div id="customDialogHeader" class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 id="customDialogTitle" class="text-lg font-semibold text-gray-900 dark:text-white"></h3>
+            </div>
+
+            <!-- Dialog Body -->
+            <div id="customDialogBody" class="px-6 py-4">
+                <p id="customDialogMessage" class="text-gray-700 dark:text-gray-300 whitespace-pre-line"></p>
+                <input id="customDialogInput" type="text" class="mt-4 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent hidden">
+            </div>
+
+            <!-- Dialog Footer -->
+            <div id="customDialogFooter" class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button id="customDialogCancel" class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition hidden">
+                    Cancel
+                </button>
+                <button id="customDialogConfirm" class="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 
