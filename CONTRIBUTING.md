@@ -46,16 +46,7 @@ Feature requests are welcome! When suggesting features, please:
    - No external JavaScript libraries (vanilla JS only)
    - Use Font Awesome icons (no inline SVGs)
 
-3. **Code formatting**:
-   ```bash
-   # Install PHP-CS-Fixer if not already installed
-   composer global require friendsofphp/php-cs-fixer
-
-   # Format your code
-   php-cs-fixer fix
-   ```
-
-4. **Test your changes**:
+3. **Test your changes**:
    - Test on PHP 8.0, 8.1, 8.2, 8.3
    - Test on multiple browsers (Chrome, Firefox, Safari, Edge)
    - Test both dark and light themes
@@ -127,12 +118,6 @@ chmod 644 config/config.php
 ```bash
 # PHP syntax check
 find . -path ./vendor -prune -o -name "*.php" -print0 | xargs -0 -n1 php -l
-
-# PHP-CS-Fixer (check)
-php-cs-fixer fix --dry-run --diff
-
-# PHP-CS-Fixer (fix)
-php-cs-fixer fix
 
 # Composer security audit
 composer audit
