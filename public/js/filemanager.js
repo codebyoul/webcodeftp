@@ -1128,6 +1128,9 @@ document.addEventListener("DOMContentLoaded", function () {
       childrenContainer.classList.remove("hidden");
       expandedFolders.add(path);
 
+      // Mark as recently expanded to prevent duplicate tree refresh
+      recentlyExpandedFolders.add(path);
+
       // Load children only when expanding
       // Clear old data first, then load fresh data from FTP server
       childrenContainer.innerHTML = "";
@@ -1191,6 +1194,68 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initial load - load tree first, then handle URL
   loadFolderTree("/", function () {
     handleUrlChange();
+  });
+
+  // ============================================================================
+  // SMART TREE REFRESH - Event-based, debounced, efficient
+  // ============================================================================
+  // Automatically refreshes tree folders when their contents change
+  // - Only refreshes expanded folders (no wasted API calls)
+  // - Debounces rapid changes (300ms)
+  // - Works for all operations automatically (create, rename, delete, etc.)
+
+  let treeRefreshTimeout = null;
+  const TREE_REFRESH_DEBOUNCE = 300; // 300ms debounce
+  const recentlyExpandedFolders = new Set(); // Track folders that just expanded
+
+  window.addEventListener("foldercontentsloaded", function(event) {
+    const path = event.detail.path;
+
+    // Debounce: Prevent rapid duplicate refreshes
+    clearTimeout(treeRefreshTimeout);
+
+    treeRefreshTimeout = setTimeout(() => {
+      // Check if this folder was recently expanded (skip refresh to avoid duplicate)
+      if (recentlyExpandedFolders.has(path)) {
+        recentlyExpandedFolders.delete(path); // Clear the flag
+        return;
+      }
+
+      // Find the folder element in tree
+      const folderElement = document.querySelector(`[data-path="${path}"]`);
+
+      if (folderElement && folderElement.dataset.type === "directory") {
+        const childrenContainer = folderElement.querySelector(`[data-children-for="${path}"]`);
+
+        // Only refresh if folder is expanded and has content
+        if (childrenContainer &&
+            !childrenContainer.classList.contains("hidden") &&
+            childrenContainer.children.length > 0) {
+
+          const level = parseInt(folderElement.dataset.level) || 0;
+
+          // Reload only this folder's children (smart, targeted refresh!)
+          childrenContainer.innerHTML = "";
+
+          fetch("/api/folder-tree?path=" + encodeURIComponent(path), {
+            credentials: "same-origin",
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success && data.tree.length > 0) {
+                renderTree(data.tree, childrenContainer, level + 1);
+              } else if (data.tree.length === 0) {
+                // Empty folder
+                const empty = document.createElement("div");
+                empty.className = "px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic";
+                empty.style.paddingLeft = (level + 1) * 16 + 12 + "px";
+                empty.textContent = "Empty";
+                childrenContainer.appendChild(empty);
+              }
+            });
+        }
+      }
+    }, TREE_REFRESH_DEBOUNCE);
   });
 
   // Sidebar Resize Functionality
@@ -1287,11 +1352,16 @@ document.addEventListener("DOMContentLoaded", function () {
           // Show list view
           listView.classList.remove("hidden");
 
+          // Dispatch custom event to notify tree that folder contents loaded (smart tree refresh!)
+          window.dispatchEvent(new CustomEvent("foldercontentsloaded", {
+            detail: { path: path, data: data }
+          }));
+
           // Call the callback when content is loaded
           if (onComplete) {
             onComplete(data);
           }
-        } else {
+        } else{
           // Folder load failed - call callback to handle error
           if (onComplete) {
             onComplete(data);
@@ -1929,6 +1999,9 @@ document.addEventListener("DOMContentLoaded", function () {
             childrenContainer.classList.remove("hidden");
             expandedFolders.add(currentPath);
 
+            // Mark as recently expanded to prevent duplicate tree refresh
+            recentlyExpandedFolders.add(currentPath);
+
             // Load children if empty - WAIT for this to complete before continuing
             if (childrenContainer.children.length === 0) {
               await new Promise((resolve) => {
@@ -2374,15 +2447,8 @@ async function createNewFile() {
     const data = await response.json();
 
     if (data.success) {
-      // Reload tree sidebar to show new file
-      if (typeof loadFolderTree === "function") {
-        loadFolderTree("/", () => {
-          // After tree reloads, refresh current folder view
-          handleUrlChange();
-        });
-      } else {
-        handleUrlChange();
-      }
+      // Refresh current folder view (tree refreshes automatically via event!)
+      handleUrlChange();
 
       // Optionally open the file for editing
       const shouldEdit = await showConfirm(
@@ -2456,15 +2522,8 @@ async function createNewFolder() {
     const data = await response.json();
 
     if (data.success) {
-      // Reload tree sidebar to show new folder
-      if (typeof loadFolderTree === "function") {
-        loadFolderTree("/", () => {
-          // After tree reloads, refresh current folder view
-          handleUrlChange();
-        });
-      } else {
-        handleUrlChange();
-      }
+      // Refresh current folder view (tree refreshes automatically via event!)
+      handleUrlChange();
 
       // Optionally navigate to the new folder
       const shouldOpen = await showConfirm(
@@ -2637,16 +2696,8 @@ async function renameSelected() {
     const data = await response.json();
 
     if (data.success) {
-      // Reload tree sidebar to show renamed item
-      if (typeof loadFolderTree === "function") {
-        loadFolderTree("/", () => {
-          // Navigate to parent folder to show the renamed item in list
-          navigateTo(data.parent_path);
-        });
-      } else {
-        // Fallback: navigate to parent folder
-        navigateTo(data.parent_path);
-      }
+      // Navigate to parent folder (tree refreshes automatically via event!)
+      navigateTo(data.parent_path);
 
       showDialog(
         `${itemType === "file" ? "File" : "Folder"} renamed successfully!`
@@ -2738,14 +2789,8 @@ async function deleteSelected() {
       // All deleted successfully
       showDialog(`Successfully deleted ${successCount} item(s)!`);
 
-      // Reload tree and refresh current folder
-      if (typeof loadFolderTree === "function") {
-        loadFolderTree("/", () => {
-          handleUrlChange();
-        });
-      } else {
-        handleUrlChange();
-      }
+      // Refresh current folder (tree refreshes automatically via event!)
+      handleUrlChange();
 
       // Clear selection
       clearSelection();
@@ -2757,14 +2802,8 @@ async function deleteSelected() {
         } item(s):\n${failedItems.join("\n")}`
       );
 
-      // Reload tree and refresh current folder
-      if (typeof loadFolderTree === "function") {
-        loadFolderTree("/", () => {
-          handleUrlChange();
-        });
-      } else {
-        handleUrlChange();
-      }
+      // Refresh current folder (tree refreshes automatically via event!)
+      handleUrlChange();
     } else {
       // All failed
       showDialog(`Failed to delete items:\n\n${failedItems.join("\n")}`);
