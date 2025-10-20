@@ -37,13 +37,13 @@
 ## 📸 Screenshots
 
 ### Login Page
-![Login Page](.github/images/screenshot-login.png)
+![Login Page](docs/images/screenshot-login.png)
 
 ### File Manager
-![File Manager](.github/images/screenshot-home.png)
+![File Manager](docs/images/screenshot-home.png)
 
 ### Integrated Code Editor
-![Code Editor](.github/images/screenshot-code.png)
+![Code Editor](docs/images/screenshot-code.png)
 
 ---
 
@@ -52,11 +52,13 @@
 ### Requirements
 
 - **PHP 8.0+** (8.0, 8.1, 8.2, 8.3)
+- **Composer** (for dependency management)
 - **PHP Extensions:**
   - `ftp` (for FTP connections)
   - `session` (for session management)
-  - `ssh2` (optional - for advanced operations)
   - `zlib` (optional - for compression)
+- **Required Package:**
+  - `phpseclib/phpseclib` ^3.0.7 (for SSH operations)
 - **Web Server:** Apache with mod_rewrite OR Nginx
 - **HTTPS** recommended for production
 
@@ -64,10 +66,10 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/webcodeftp.git
+git clone https://github.com/codebyoul/webcodeftp.git
 cd webcodeftp
 
-# 2. Install dependencies (optional - autoloader included)
+# 2. Install dependencies (REQUIRED)
 composer install
 
 # 3. Configure your FTP server
@@ -142,6 +144,8 @@ WebCodeFTP uses a **single configuration file** at `config/config.php`. This is 
 **Security Note:** Users can ONLY connect to your configured FTP server. They cannot specify custom servers, preventing SSRF attacks.
 
 ### 2. SSH Configuration (Optional - Recommended)
+
+**SSH operations powered by [phpseclib](https://github.com/phpseclib/phpseclib) 3.0.7** - A pure PHP SSH implementation.
 
 **Why use SSH over FTP?** SSH provides **significantly better performance** for advanced operations:
 
@@ -269,9 +273,10 @@ PHP, JavaScript, TypeScript, HTML, CSS, Python, Java, C, C++, Go, Rust, Ruby, Sw
 - Check `session.save_path` in php.ini
 
 ### SSH features not working
-- Install `php-ssh2` extension: `sudo apt install php-ssh2`
+- Run `composer install` to ensure phpseclib is installed
 - Verify SSH credentials in `config/config.php`
 - Test SSH connection: `ssh username@hostname`
+- Check logs: `tail -f logs/app.log`
 
 ### "Invalid security token"
 - Enable cookies in your browser
@@ -299,6 +304,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 Built with amazing open-source technologies:
 
 - [CodeMirror 6](https://codemirror.net/) - The powerful code editor
+- [phpseclib 3.0.7](https://github.com/phpseclib/phpseclib) - Pure PHP SSH implementation
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 - [Font Awesome](https://fontawesome.com/) - Beautiful icons
 - PHP 8.0+ - Modern, fast, and secure

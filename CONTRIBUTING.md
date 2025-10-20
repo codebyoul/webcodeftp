@@ -97,8 +97,8 @@ Feature requests are welcome! When suggesting features, please:
 
 ### Requirements
 
-- PHP 8.0+ with extensions: `ftp`, `session`, `zlib`, `ssh2` (optional)
-- Composer
+- PHP 8.0+ with extensions: `ftp`, `session`, `zlib`
+- Composer (required for phpseclib/phpseclib ^3.0.7)
 - Web server (Apache or Nginx)
 
 ### Installation
