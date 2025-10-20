@@ -134,7 +134,8 @@ class FtpOperationsService
             if ($permissions[0] === 'd') {
                 $folderData = [
                     'name' => $name,
-                    'path' => $fullPath,
+                    'path' => $fullPath,                    // Symlink path (for navigation)
+                    'real_path' => $isSymlink && $symlinkTarget ? $symlinkTarget : $fullPath, // Real path for operations
                     'type' => 'directory',
                     'modified' => $modified,
                     'permissions' => $permissions,
@@ -150,7 +151,8 @@ class FtpOperationsService
             } else {
                 $fileData = [
                     'name' => $name,
-                    'path' => $fullPath,
+                    'path' => $fullPath,                    // Symlink path (for navigation)
+                    'real_path' => $isSymlink && $symlinkTarget ? $symlinkTarget : $fullPath, // Real path for operations
                     'type' => 'file',
                     'size' => isset($parts[4]) ? (int) $parts[4] : 0,
                     'modified' => $modified,
@@ -286,7 +288,8 @@ class FtpOperationsService
             if ($permissions[0] === 'd') {
                 $folderData = [
                     'name' => $name,
-                    'path' => $fullPath,
+                    'path' => $fullPath,                    // Symlink path (for navigation)
+                    'real_path' => $isSymlink && $symlinkTarget ? $symlinkTarget : $fullPath, // Real path for operations
                     'type' => 'directory',
                     'modified' => $modified,
                     'permissions' => $permissions,
@@ -304,7 +307,8 @@ class FtpOperationsService
 
                 $fileData = [
                     'name' => $name,
-                    'path' => $fullPath,
+                    'path' => $fullPath,                    // Symlink path (for navigation)
+                    'real_path' => $isSymlink && $symlinkTarget ? $symlinkTarget : $fullPath, // Real path for operations
                     'type' => 'file',
                     'size' => (int) $parts[4],
                     'modified' => $modified,

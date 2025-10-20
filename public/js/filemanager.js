@@ -1408,7 +1408,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             ? `
                             <!-- Download Button for Archives -->
                             <a href="/api/download?path=${encodeURIComponent(
-                              file.path
+                              file.real_path || file.path
                             )}" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 transition-all duration-200">
                                 <i class="fas fa-download text-sm"></i>
                                 <span>Download</span>
@@ -1418,7 +1418,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                 ? `
                             <!-- Unzip Button (only if SSH enabled) -->
                             <button onclick="unzipFile('${escapeHtml(
-                              file.path
+                              file.real_path || file.path
                             )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800 transition-all duration-200">
                                 <i class="fas fa-file-zipper text-sm"></i>
                                 <span>Unzip</span>
@@ -1430,7 +1430,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             : `
                             <!-- Edit/Preview Button for non-archives -->
                             <button onclick="previewFile('${escapeHtml(
-                              file.path
+                              file.real_path || file.path
                             )}', '${escapeHtml(
                               file.extension || ""
                             )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
@@ -1714,9 +1714,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (type === "folder") {
-        navigateTo(item.path);
+        navigateTo(item.path); // For folders, use symlink path for navigation
       } else {
-        previewFile(item.path);
+        previewFile(item.real_path || item.path); // For files, use real path for operations
       }
     });
 
