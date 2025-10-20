@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Controllers;
+namespace WebCodeFTP\Controllers;
 
-use WebFTP\Core\Request;
-use WebFTP\Core\Response;
-use WebFTP\Core\Logger;
-use WebFTP\Models\Session;
-use WebFTP\Services\FtpConnectionService;
-use WebFTP\Services\FtpOperationsService;
+use WebCodeFTP\Core\Request;
+use WebCodeFTP\Core\Response;
+use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Models\Session;
+use WebCodeFTP\Services\FtpConnectionService;
+use WebCodeFTP\Services\FtpOperationsService;
 
 /**
  * File Manager Controller
@@ -24,7 +24,8 @@ class FileManagerController
         private Request $request,
         private Response $response,
         private Session $session
-    ) {}
+    ) {
+    }
 
     /**
      * Show file manager
@@ -53,7 +54,7 @@ class FileManagerController
         ]);
 
         // Load translations
-        $lang = new \WebFTP\Core\Language($language, $this->config);
+        $lang = new \WebCodeFTP\Core\Language($language, $this->config);
         $translations = $lang->all();
 
         // Debug translations
@@ -69,7 +70,7 @@ class FileManagerController
         $ftpUsername = $this->session->get('ftp_username');
 
         // Generate CSRF token for file operations
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
         $csrfToken = $csrf->getToken();
 
         // Render file manager view
@@ -160,7 +161,7 @@ class FileManagerController
 
         try {
             // Initialize services
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -173,7 +174,7 @@ class FileManagerController
             }
 
             // Connect to FTP and get folder tree
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPath) {
                 $tree = $ftpOperations->getFolderTree($sanitizedPath);
 
                 return [
@@ -213,7 +214,7 @@ class FileManagerController
 
         try {
             // Initialize security manager
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -225,7 +226,7 @@ class FileManagerController
             }
 
             // Connect to FTP and get directory contents
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPath) {
                 $contents = $ftpOperations->getDirectoryContents($sanitizedPath);
 
                 // Check if the folder exists
@@ -284,7 +285,7 @@ class FileManagerController
 
         try {
             // Initialize security manager
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -293,7 +294,7 @@ class FileManagerController
             }
 
             // Connect to FTP and read file
-            $result = $this->withFtpConnection(function($ftpOperations, $ftpConnection) use ($sanitizedPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations, $ftpConnection) use ($sanitizedPath) {
                 // Get file size first
                 $fileSize = $ftpOperations->getFileSize($sanitizedPath);
                 if ($fileSize === -1) {
@@ -360,7 +361,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token', '');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             $this->response->json(['success' => false, 'message' => 'Invalid CSRF token'], 403);
@@ -387,7 +388,7 @@ class FileManagerController
 
         try {
             // Initialize security manager
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -402,7 +403,7 @@ class FileManagerController
             }
 
             // Connect to FTP and write file
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath, $content) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPath, $content) {
                 $writeResult = $ftpOperations->writeFile($sanitizedPath, $content);
 
                 if (!$writeResult['success']) {
@@ -440,7 +441,7 @@ class FileManagerController
         }
 
         // Generate new CSRF token
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
         $csrfToken = $csrf->getToken();
 
         $this->response->json([
@@ -472,7 +473,7 @@ class FileManagerController
 
         try {
             // Initialize security manager
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -483,7 +484,7 @@ class FileManagerController
             }
 
             // Connect to FTP and read image file
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPath) {
                 // Read file from FTP
                 $fileContent = $ftpOperations->readFile($sanitizedPath);
 
@@ -551,7 +552,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token', '');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
@@ -579,7 +580,7 @@ class FileManagerController
 
         try {
             // Connect to FTP and create file
-            $result = $this->withFtpConnection(function($ftpOperations) use ($fullPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($fullPath) {
                 return $ftpOperations->createFile($fullPath);
             });
 
@@ -611,7 +612,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token', '');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
@@ -639,7 +640,7 @@ class FileManagerController
 
         try {
             // Connect to FTP and create folder
-            $result = $this->withFtpConnection(function($ftpOperations) use ($fullPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($fullPath) {
                 return $ftpOperations->createFolder($fullPath);
             });
 
@@ -671,7 +672,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token', '');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             $this->response->json(['success' => false, 'message' => 'Invalid security token'], 403);
@@ -702,7 +703,7 @@ class FileManagerController
 
         try {
             // Connect to FTP and rename
-            $result = $this->withFtpConnection(function($ftpOperations) use ($oldPath, $newPath) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($oldPath, $newPath) {
                 return $ftpOperations->rename($oldPath, $newPath);
             });
 
@@ -737,7 +738,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             Logger::warning('CSRF validation failed for delete', [
@@ -750,7 +751,8 @@ class FileManagerController
 
         try {
             // Check if paths is an array (batch delete) or single path
-            $paths = $this->request->post('paths');
+            // Note: Use rawPost() for JSON data to avoid HTML entity encoding
+            $paths = $this->request->rawPost('paths');
             $path = $this->request->post('path');
 
             // Collect paths (support both batch and single delete)
@@ -758,7 +760,20 @@ class FileManagerController
             if (!empty($paths)) {
                 // Batch delete mode - paths should be JSON encoded array
                 if (is_string($paths)) {
-                    $paths = json_decode($paths, true);
+                    // Security: Limit JSON string length (supports ~100 paths)
+                    if (strlen($paths) > 10000) {
+                        $this->response->json(['success' => false, 'message' => 'Paths data too large']);
+                        return;
+                    }
+
+                    $decodedPaths = json_decode($paths, true);
+
+                    if ($decodedPaths === null && json_last_error() !== JSON_ERROR_NONE) {
+                        $this->response->json(['success' => false, 'message' => 'Invalid JSON in paths']);
+                        return;
+                    }
+
+                    $paths = $decodedPaths;
                 }
 
                 if (!is_array($paths) || empty($paths)) {
@@ -775,7 +790,7 @@ class FileManagerController
             }
 
             // Sanitize all paths
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
             $sanitizedPaths = [];
             foreach ($pathsToDelete as $p) {
                 $sanitized = $security->sanitizePath($p);
@@ -787,7 +802,7 @@ class FileManagerController
             }
 
             // Perform delete using unified delete() method
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPaths) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPaths) {
                 return $ftpOperations->delete($sanitizedPaths);
             });
 
@@ -833,7 +848,7 @@ class FileManagerController
             }
 
             // Sanitize path
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
             $sanitizedPath = $security->sanitizePath($path);
 
             if ($sanitizedPath === null) {
@@ -846,7 +861,7 @@ class FileManagerController
             $tempFile = tempnam(sys_get_temp_dir(), 'webftp_');
 
             // Connect to FTP and download file
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath, $tempFile) {
+            $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedPath, $tempFile) {
                 return $ftpOperations->downloadFile($sanitizedPath, $tempFile);
             });
 
@@ -908,7 +923,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             Logger::warning('CSRF validation failed for unzip', [
@@ -929,7 +944,7 @@ class FileManagerController
             }
 
             // Sanitize path
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
             $sanitizedPath = $security->sanitizePath($path);
 
             if ($sanitizedPath === null) {
@@ -941,7 +956,7 @@ class FileManagerController
             $destinationPath = dirname($sanitizedPath);
 
             // Use SSH for unzip operation
-            $result = $this->withSshConnection(function($sshOperations) use ($sanitizedPath, $destinationPath) {
+            $result = $this->withSshConnection(function ($sshOperations) use ($sanitizedPath, $destinationPath) {
                 return $sshOperations->unzipFile($sanitizedPath, $destinationPath);
             });
 
@@ -982,7 +997,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             Logger::warning('CSRF validation failed for zip', [
@@ -1004,7 +1019,7 @@ class FileManagerController
             }
 
             // Sanitize paths
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
             $sanitizedSourcePath = $security->sanitizePath($sourcePath);
             $sanitizedArchiveName = $security->sanitizePath($archiveName);
 
@@ -1014,7 +1029,7 @@ class FileManagerController
             }
 
             // Use SSH for zip operation
-            $result = $this->withSshConnection(function($sshOperations) use ($sanitizedSourcePath, $sanitizedArchiveName) {
+            $result = $this->withSshConnection(function ($sshOperations) use ($sanitizedSourcePath, $sanitizedArchiveName) {
                 return $sshOperations->zipFile($sanitizedSourcePath, $sanitizedArchiveName);
             });
 
@@ -1051,7 +1066,7 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token');
-        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+        $csrf = new \WebCodeFTP\Core\CsrfToken($this->config);
 
         if (!$csrf->validate($csrfToken)) {
             Logger::warning('CSRF validation failed for move', [
@@ -1073,7 +1088,7 @@ class FileManagerController
             }
 
             // Sanitize paths
-            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $security = new \WebCodeFTP\Core\SecurityManager($this->config);
             $sanitizedSourcePath = $security->sanitizePath($sourcePath);
             $sanitizedDestinationPath = $security->sanitizePath($destinationPath);
 
@@ -1085,12 +1100,12 @@ class FileManagerController
             // Check if SSH is enabled - use SSH, otherwise use FTP
             if ($this->config['ssh']['enabled']) {
                 // Use SSH for move operation
-                $result = $this->withSshConnection(function($sshOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
+                $result = $this->withSshConnection(function ($sshOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
                     return $sshOperations->move($sanitizedSourcePath, $sanitizedDestinationPath);
                 });
             } else {
                 // Use FTP for move operation (rename)
-                $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
+                $result = $this->withFtpConnection(function ($ftpOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
                     return $ftpOperations->renameFile($sanitizedSourcePath, $sanitizedDestinationPath);
                 });
             }
@@ -1134,7 +1149,7 @@ class FileManagerController
         }
 
         // Initialize services
-        $security = new \WebFTP\Core\SecurityManager($this->config);
+        $security = new \WebCodeFTP\Core\SecurityManager($this->config);
         $ftpConnectionService = new FtpConnectionService($this->config, $security);
         $ftpOperationsService = new FtpOperationsService($ftpConnectionService, $security, $this->config);
 
@@ -1196,9 +1211,9 @@ class FileManagerController
         }
 
         // Initialize services
-        $security = new \WebFTP\Core\SecurityManager($this->config);
-        $sshConnectionService = new \WebFTP\Services\SshConnectionService($this->config, $security);
-        $sshOperationsService = new \WebFTP\Services\SshOperationsService($sshConnectionService, $security, $this->config);
+        $security = new \WebCodeFTP\Core\SecurityManager($this->config);
+        $sshConnectionService = new \WebCodeFTP\Services\SshConnectionService($this->config, $security);
+        $sshOperationsService = new \WebCodeFTP\Services\SshOperationsService($sshConnectionService, $security, $this->config);
 
         try {
             // Connect to SSH server

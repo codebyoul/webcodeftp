@@ -1,4 +1,4 @@
-// WebFTP File Manager JavaScript
+// WebCodeFTP File Manager JavaScript
 // Handles file operations, UI interactions, and file browser logic
 // NOTE: api-interceptor.js must be loaded BEFORE this file for 401 handling
 
@@ -263,24 +263,28 @@ window.showDeleteConfirm = function (items) {
     const itemListSection = document.getElementById("customDialogItemList");
     const itemsUl = document.getElementById("customDialogItems");
     const warningSection = document.getElementById("customDialogWarning");
-    const warningMessage = document.getElementById("customDialogWarningMessage");
+    const warningMessage = document.getElementById(
+      "customDialogWarningMessage"
+    );
     const inputEl = document.getElementById("customDialogInput");
     const confirmBtn = document.getElementById("customDialogConfirm");
     const cancelBtn = document.getElementById("customDialogCancel");
 
     // Count file types
-    const fileCount = items.filter(item => item.type === 'file').length;
-    const folderCount = items.filter(item => item.type === 'folder').length;
+    const fileCount = items.filter((item) => item.type === "file").length;
+    const folderCount = items.filter((item) => item.type === "folder").length;
     const totalCount = items.length;
 
     // Build summary
     let summary = "";
     if (fileCount > 0 && folderCount > 0) {
-      summary = `${fileCount} file${fileCount !== 1 ? 's' : ''} and ${folderCount} folder${folderCount !== 1 ? 's' : ''}`;
+      summary = `${fileCount} file${
+        fileCount !== 1 ? "s" : ""
+      } and ${folderCount} folder${folderCount !== 1 ? "s" : ""}`;
     } else if (fileCount > 0) {
-      summary = `${fileCount} file${fileCount !== 1 ? 's' : ''}`;
+      summary = `${fileCount} file${fileCount !== 1 ? "s" : ""}`;
     } else {
-      summary = `${folderCount} folder${folderCount !== 1 ? 's' : ''}`;
+      summary = `${folderCount} folder${folderCount !== 1 ? "s" : ""}`;
     }
 
     // Set title
@@ -297,14 +301,16 @@ window.showDeleteConfirm = function (items) {
 
     if (totalCount <= MAX_DISPLAY) {
       // Show all items
-      items.forEach(item => {
+      items.forEach((item) => {
         const li = document.createElement("li");
-        li.className = "flex items-center gap-2 text-gray-700 dark:text-gray-300";
+        li.className =
+          "flex items-center gap-2 text-gray-700 dark:text-gray-300";
 
         const icon = document.createElement("i");
-        icon.className = item.type === 'folder'
-          ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
-          : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
+        icon.className =
+          item.type === "folder"
+            ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
+            : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "truncate";
@@ -316,14 +322,16 @@ window.showDeleteConfirm = function (items) {
       });
     } else {
       // Show first 10 items
-      items.slice(0, MAX_DISPLAY).forEach(item => {
+      items.slice(0, MAX_DISPLAY).forEach((item) => {
         const li = document.createElement("li");
-        li.className = "flex items-center gap-2 text-gray-700 dark:text-gray-300";
+        li.className =
+          "flex items-center gap-2 text-gray-700 dark:text-gray-300";
 
         const icon = document.createElement("i");
-        icon.className = item.type === 'folder'
-          ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
-          : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
+        icon.className =
+          item.type === "folder"
+            ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
+            : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
 
         const nameSpan = document.createElement("span");
         nameSpan.className = "truncate";
@@ -337,13 +345,16 @@ window.showDeleteConfirm = function (items) {
       // Add "and X more..." item
       const remaining = totalCount - MAX_DISPLAY;
       const moreLi = document.createElement("li");
-      moreLi.className = "flex items-center gap-2 text-gray-500 dark:text-gray-400 italic mt-2 pt-2 border-t border-gray-300 dark:border-gray-600";
+      moreLi.className =
+        "flex items-center gap-2 text-gray-500 dark:text-gray-400 italic mt-2 pt-2 border-t border-gray-300 dark:border-gray-600";
 
       const moreIcon = document.createElement("i");
       moreIcon.className = "fas fa-ellipsis-h w-4";
 
       const moreSpan = document.createElement("span");
-      moreSpan.textContent = `and ${remaining} more item${remaining !== 1 ? 's' : ''}...`;
+      moreSpan.textContent = `and ${remaining} more item${
+        remaining !== 1 ? "s" : ""
+      }...`;
 
       moreLi.appendChild(moreIcon);
       moreLi.appendChild(moreSpan);
@@ -361,7 +372,8 @@ window.showDeleteConfirm = function (items) {
     inputEl.classList.add("hidden");
     cancelBtn.classList.remove("hidden");
     confirmBtn.textContent = "Delete";
-    confirmBtn.className = "px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition font-medium";
+    confirmBtn.className =
+      "px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition font-medium";
     cancelBtn.textContent = "Cancel";
 
     // Show dialog with animation
@@ -408,7 +420,8 @@ window.showDeleteConfirm = function (items) {
         warningSection.classList.add("hidden");
         warningMessage.textContent = "";
         // Reset confirm button styling
-        confirmBtn.className = "px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition";
+        confirmBtn.className =
+          "px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition";
       }, 200);
       confirmBtn.removeEventListener("click", handleConfirm);
       cancelBtn.removeEventListener("click", handleCancel);
@@ -488,7 +501,7 @@ function updateSelectionUI() {
   if (statusBar && statusBarText) {
     if (count > 0) {
       // Highlight status bar when items selected
-      statusBar.classList.remove("bg-gray-50", "dark:bg-gray-900");
+      statusBar.classList.remove("bg-white", "dark:bg-gray-800");
       statusBar.classList.add("bg-blue-100", "dark:bg-blue-900/30");
       statusBarText.classList.remove("text-gray-500", "dark:text-gray-400");
       statusBarText.classList.add(
@@ -499,7 +512,7 @@ function updateSelectionUI() {
     } else {
       // Reset to default when no selection
       statusBar.classList.remove("bg-blue-100", "dark:bg-blue-900/30");
-      statusBar.classList.add("bg-gray-50", "dark:bg-gray-900");
+      statusBar.classList.add("bg-white", "dark:bg-gray-800");
       statusBarText.classList.remove(
         "text-blue-700",
         "dark:text-blue-300",
@@ -574,7 +587,17 @@ function updateActionButtonStates() {
     if (count === 1 && window.selectedItems[0].type === "file") {
       const file = window.selectedItems[0];
       const extension = file.extension || "";
-      const isArchive = ["zip", "rar", "tar", "gz", "bz2", "7z", "tgz", "xz", "iso"].includes(extension.toLowerCase());
+      const isArchive = [
+        "zip",
+        "rar",
+        "tar",
+        "gz",
+        "bz2",
+        "7z",
+        "tgz",
+        "xz",
+        "iso",
+      ].includes(extension.toLowerCase());
 
       if (!isArchive) {
         editBtn.disabled = false;
@@ -669,28 +692,32 @@ class ToolbarManager {
     this.currentContext = null;
     this.currentFileData = null;
 
+    // Listen to loading events and hide/show toolbar automatically
+    window.addEventListener("loadingstart", () => this.hideToolbar());
+    window.addEventListener("loadingcomplete", () => this.showToolbar());
+
     // Define toolbar action configurations
     this.actions = {
       // Button ID -> Configuration
-      parentFolderBtn: { group: 'navigation', type: 'button' },
-      refreshBtn: { group: 'navigation', type: 'button' },
-      uploadBtn: { group: 'transfer', type: 'button' },
-      downloadBtn: { group: 'transfer', type: 'button' },
-      editBtn: { group: 'operations', type: 'button' },
-      renameBtn: { group: 'operations', type: 'button' },
-      deleteBtn: { group: 'operations', type: 'button' },
-      zipBtn: { group: 'ssh', type: 'button' },
-      unzipBtn: { group: 'ssh', type: 'button' },
-      moveBtn: { group: 'ssh', type: 'button' },
+      parentFolderBtn: { group: "navigation", type: "button" },
+      refreshBtn: { group: "navigation", type: "button" },
+      uploadBtn: { group: "transfer", type: "button" },
+      downloadBtn: { group: "transfer", type: "button" },
+      editBtn: { group: "operations", type: "button" },
+      renameBtn: { group: "operations", type: "button" },
+      deleteBtn: { group: "operations", type: "button" },
+      zipBtn: { group: "ssh", type: "button" },
+      unzipBtn: { group: "ssh", type: "button" },
+      moveBtn: { group: "ssh", type: "button" },
     };
 
     // Define toolbar groups
     this.groups = {
-      navigation: { selector: '.toolbar-navigation' },
-      transfer: { selector: '.toolbar-transfer' },
-      create: { selector: '.toolbar-create' },
-      operations: { selector: '.toolbar-operations' },
-      ssh: { selector: '.toolbar-ssh' },
+      navigation: { selector: ".toolbar-navigation" },
+      transfer: { selector: ".toolbar-transfer" },
+      create: { selector: ".toolbar-create" },
+      operations: { selector: ".toolbar-operations" },
+      ssh: { selector: ".toolbar-ssh" },
     };
 
     // Context rules - define what's visible/enabled for each context
@@ -706,10 +733,13 @@ class ToolbarManager {
         },
         actions: {
           uploadBtn: { visible: false }, // Not implemented yet
-          downloadBtn: { enabled: false, tooltip: 'Select item(s) to download' },
-          editBtn: { enabled: false, tooltip: 'Select a file to edit' },
-          renameBtn: { enabled: false, tooltip: 'Select an item to rename' },
-          deleteBtn: { enabled: false, tooltip: 'Select item(s) to delete' },
+          downloadBtn: {
+            enabled: false,
+            tooltip: "Select item(s) to download",
+          },
+          editBtn: { enabled: false, tooltip: "Select a file to edit" },
+          renameBtn: { enabled: false, tooltip: "Select an item to rename" },
+          deleteBtn: { enabled: false, tooltip: "Select item(s) to delete" },
         },
       },
 
@@ -724,15 +754,16 @@ class ToolbarManager {
         },
         actions: {
           uploadBtn: { visible: false },
-          downloadBtn: { enabled: true, tooltip: 'Download' },
+          downloadBtn: { enabled: true, tooltip: "Download" },
           editBtn: {
             enabled: (fileData) => !this.isArchiveFile(fileData?.extension),
-            tooltip: (fileData) => this.isArchiveFile(fileData?.extension)
-              ? 'Archive files cannot be edited'
-              : 'Edit File'
+            tooltip: (fileData) =>
+              this.isArchiveFile(fileData?.extension)
+                ? "Archive files cannot be edited"
+                : "Edit File",
           },
-          renameBtn: { enabled: true, tooltip: 'Rename' },
-          deleteBtn: { enabled: true, tooltip: 'Delete' },
+          renameBtn: { enabled: true, tooltip: "Rename" },
+          deleteBtn: { enabled: true, tooltip: "Delete" },
         },
         // Auto-select the file
         autoSelect: true,
@@ -749,10 +780,13 @@ class ToolbarManager {
         },
         actions: {
           uploadBtn: { visible: false },
-          downloadBtn: { enabled: true, tooltip: 'Download Image' },
-          editBtn: { enabled: false, tooltip: 'Images cannot be edited in text editor' },
-          renameBtn: { enabled: true, tooltip: 'Rename' },
-          deleteBtn: { enabled: true, tooltip: 'Delete' },
+          downloadBtn: { enabled: true, tooltip: "Download Image" },
+          editBtn: {
+            enabled: false,
+            tooltip: "Images cannot be edited in text editor",
+          },
+          renameBtn: { enabled: true, tooltip: "Rename" },
+          deleteBtn: { enabled: true, tooltip: "Delete" },
         },
         autoSelect: true,
       },
@@ -768,11 +802,14 @@ class ToolbarManager {
         },
         actions: {
           uploadBtn: { visible: false },
-          downloadBtn: { enabled: true, tooltip: 'Download Archive' },
-          editBtn: { enabled: false, tooltip: 'Archive files cannot be edited' },
-          renameBtn: { enabled: true, tooltip: 'Rename' },
-          deleteBtn: { enabled: true, tooltip: 'Delete' },
-          unzipBtn: { enabled: true, tooltip: 'Extract Archive' },
+          downloadBtn: { enabled: true, tooltip: "Download Archive" },
+          editBtn: {
+            enabled: false,
+            tooltip: "Archive files cannot be edited",
+          },
+          renameBtn: { enabled: true, tooltip: "Rename" },
+          deleteBtn: { enabled: true, tooltip: "Delete" },
+          unzipBtn: { enabled: true, tooltip: "Extract Archive" },
           zipBtn: { visible: false }, // Hide zip button for archives
           moveBtn: { visible: false },
         },
@@ -848,17 +885,19 @@ class ToolbarManager {
 
       // Handle enabled/disabled state
       if (rule.enabled !== undefined) {
-        const enabled = typeof rule.enabled === 'function'
-          ? rule.enabled(fileData)
-          : rule.enabled;
+        const enabled =
+          typeof rule.enabled === "function"
+            ? rule.enabled(fileData)
+            : rule.enabled;
         this.setEnabled(element, enabled);
       }
 
       // Handle tooltip
       if (rule.tooltip !== undefined) {
-        const tooltip = typeof rule.tooltip === 'function'
-          ? rule.tooltip(fileData)
-          : rule.tooltip;
+        const tooltip =
+          typeof rule.tooltip === "function"
+            ? rule.tooltip(fileData)
+            : rule.tooltip;
         element.title = tooltip;
       }
     });
@@ -869,9 +908,9 @@ class ToolbarManager {
    */
   setVisibility(element, visible) {
     if (visible) {
-      element.classList.remove('hidden');
+      element.classList.remove("hidden");
     } else {
-      element.classList.add('hidden');
+      element.classList.add("hidden");
     }
   }
 
@@ -881,10 +920,10 @@ class ToolbarManager {
   setEnabled(button, enabled) {
     if (enabled) {
       button.disabled = false;
-      button.classList.remove('opacity-50', 'cursor-not-allowed');
+      button.classList.remove("opacity-50", "cursor-not-allowed");
     } else {
       button.disabled = true;
-      button.classList.add('opacity-50', 'cursor-not-allowed');
+      button.classList.add("opacity-50", "cursor-not-allowed");
     }
   }
 
@@ -892,19 +931,23 @@ class ToolbarManager {
    * Update separator visibility (hide if neighboring groups are hidden)
    */
   updateSeparators() {
-    const separators = document.querySelectorAll('.toolbar-separator');
+    const separators = document.querySelectorAll(".toolbar-separator");
 
     separators.forEach((separator) => {
       const prev = separator.previousElementSibling;
       const next = separator.nextElementSibling;
 
-      const prevHidden = prev && (prev.classList.contains('hidden') || prev.offsetParent === null);
-      const nextHidden = next && (next.classList.contains('hidden') || next.offsetParent === null);
+      const prevHidden =
+        prev &&
+        (prev.classList.contains("hidden") || prev.offsetParent === null);
+      const nextHidden =
+        next &&
+        (next.classList.contains("hidden") || next.offsetParent === null);
 
       if (prevHidden || nextHidden) {
-        separator.classList.add('hidden');
+        separator.classList.add("hidden");
       } else {
-        separator.classList.remove('hidden');
+        separator.classList.remove("hidden");
       }
     });
   }
@@ -914,7 +957,7 @@ class ToolbarManager {
    */
   selectFile(fileData) {
     // Clear previous selection
-    if (typeof clearSelection === 'function') {
+    if (typeof clearSelection === "function") {
       clearSelection();
     }
 
@@ -925,7 +968,7 @@ class ToolbarManager {
     window.selectedItems = [fileData];
 
     // Update selection count
-    if (typeof updateSelectionCount === 'function') {
+    if (typeof updateSelectionCount === "function") {
       updateSelectionCount();
     }
   }
@@ -934,8 +977,8 @@ class ToolbarManager {
    * Dispatch custom event for context change
    */
   dispatchContextChangeEvent(context, fileData) {
-    const event = new CustomEvent('toolbar:contextchange', {
-      detail: { context, fileData }
+    const event = new CustomEvent("toolbar:contextchange", {
+      detail: { context, fileData },
     });
     window.dispatchEvent(event);
   }
@@ -945,7 +988,17 @@ class ToolbarManager {
    */
   isArchiveFile(extension) {
     if (!extension) return false;
-    const archiveExtensions = ['zip', 'rar', 'tar', 'gz', 'bz2', '7z', 'tgz', 'xz', 'iso'];
+    const archiveExtensions = [
+      "zip",
+      "rar",
+      "tar",
+      "gz",
+      "bz2",
+      "7z",
+      "tgz",
+      "xz",
+      "iso",
+    ];
     return archiveExtensions.includes(extension.toLowerCase());
   }
 
@@ -954,7 +1007,16 @@ class ToolbarManager {
    */
   isImageFile(extension) {
     if (!extension) return false;
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'];
+    const imageExtensions = [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "bmp",
+      "svg",
+      "webp",
+      "ico",
+    ];
     return imageExtensions.includes(extension.toLowerCase());
   }
 
@@ -964,16 +1026,16 @@ class ToolbarManager {
    * @returns {string} - Context name: 'file', 'image', 'archive'
    */
   detectFileContext(fileData) {
-    if (!fileData) return 'folder';
+    if (!fileData) return "folder";
 
     const extension = fileData.extension;
 
     if (this.isArchiveFile(extension)) {
-      return 'archive';
+      return "archive";
     } else if (this.isImageFile(extension)) {
-      return 'image';
+      return "image";
     } else {
-      return 'file';
+      return "file";
     }
   }
 
@@ -984,6 +1046,26 @@ class ToolbarManager {
    */
   addContextRule(contextName, rules) {
     this.contextRules[contextName] = rules;
+  }
+
+  /**
+   * Hide toolbar during loading states
+   */
+  hideToolbar() {
+    const toolbar = document.getElementById("fileManagerToolbar");
+    if (toolbar) {
+      toolbar.classList.add("hidden");
+    }
+  }
+
+  /**
+   * Show toolbar after loading completes
+   */
+  showToolbar() {
+    const toolbar = document.getElementById("fileManagerToolbar");
+    if (toolbar) {
+      toolbar.classList.remove("hidden");
+    }
   }
 }
 
@@ -1190,7 +1272,7 @@ function handleUrlChange(event) {
 
         // Set toolbar context for image preview
         if (window.toolbarManager) {
-          window.toolbarManager.setContext('image', fileData);
+          window.toolbarManager.setContext("image", fileData);
         }
 
         // Always show preview for action=preview
@@ -1235,12 +1317,14 @@ function handleUrlChange(event) {
       });
     }
   } else {
-    // It's a FOLDER - Set toolbar to folder context
-    if (window.toolbarManager) {
-      window.toolbarManager.setContext('folder');
-    }
-
+    // It's a FOLDER
     loadFolderContents(path, (data) => {
+      // Set toolbar context to folder AFTER loading completes
+      if (window.toolbarManager) {
+        window.toolbarManager.setContext("folder");
+      }
+
+      // Handle errors
       if (!data || !data.success) {
         const errorMessage = data?.message || "Folder not found";
         if (typeof window.displayFolderNotFound === "function") {
@@ -1271,6 +1355,66 @@ function previewFile(path, extension = null) {
   } else {
     // Navigate with edit action (will open editor)
     navigateTo(path, "edit");
+  }
+}
+
+/**
+ * Toggle sort headers and select-all checkbox based on list state
+ * @param {boolean} enabled - true to enable, false to disable
+ */
+function toggleSortAndSelectAll(enabled) {
+  // Get all sortable table headers
+  const sortableHeaders = document.querySelectorAll(
+    'th[onclick^="sortListView"]'
+  );
+
+  // Get select-all checkbox
+  const selectAllCheckbox = document.getElementById("selectAllCheckbox");
+
+  if (enabled) {
+    // Enable sort headers
+    sortableHeaders.forEach((header) => {
+      header.classList.remove(
+        "opacity-50",
+        "cursor-not-allowed",
+        "pointer-events-none"
+      );
+      header.classList.add(
+        "cursor-pointer",
+        "hover:text-primary-500",
+        "dark:hover:text-primary-400"
+      );
+    });
+
+    // Enable select-all checkbox
+    if (selectAllCheckbox) {
+      selectAllCheckbox.disabled = false;
+      selectAllCheckbox.classList.remove("opacity-50", "cursor-not-allowed");
+      selectAllCheckbox.classList.add("cursor-pointer");
+    }
+  } else {
+    // Disable sort headers
+    sortableHeaders.forEach((header) => {
+      header.classList.add(
+        "opacity-50",
+        "cursor-not-allowed",
+        "pointer-events-none"
+      );
+      header.classList.remove(
+        "cursor-pointer",
+        "hover:text-primary-500",
+        "dark:hover:text-primary-400"
+      );
+    });
+
+    // Disable select-all checkbox
+    if (selectAllCheckbox) {
+      selectAllCheckbox.disabled = true;
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+      selectAllCheckbox.classList.add("opacity-50", "cursor-not-allowed");
+      selectAllCheckbox.classList.remove("cursor-pointer");
+    }
   }
 }
 
@@ -1446,7 +1590,9 @@ function updateUnzipButtonState() {
   if (window.selectedItems && window.selectedItems.length === 1) {
     const selectedItem = window.selectedItems[0];
     // Use extension from backend API if available, otherwise fallback to parsing name
-    const extension = (selectedItem.extension || selectedItem.name.split(".").pop()).toLowerCase();
+    const extension = (
+      selectedItem.extension || selectedItem.name.split(".").pop()
+    ).toLowerCase();
     const isZipFile = zipExtensions.includes(extension);
 
     if (isZipFile) {
@@ -1643,8 +1789,11 @@ document.addEventListener("DOMContentLoaded", function () {
       // Symlink indicator for folders
       if (item.is_symlink) {
         const symlinkIcon = document.createElement("i");
-        symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
-        symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+        symlinkIcon.className =
+          "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+        symlinkIcon.title = item.symlink_target
+          ? `Symlink → ${item.symlink_target}`
+          : "Symbolic Link";
         button.appendChild(symlinkIcon);
       }
 
@@ -1697,8 +1846,11 @@ document.addEventListener("DOMContentLoaded", function () {
       // Symlink indicator for files
       if (item.is_symlink) {
         const symlinkIcon = document.createElement("i");
-        symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
-        symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+        symlinkIcon.className =
+          "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+        symlinkIcon.title = item.symlink_target
+          ? `Symlink → ${item.symlink_target}`
+          : "Symbolic Link";
         button.appendChild(symlinkIcon);
       }
 
@@ -1759,9 +1911,6 @@ document.addEventListener("DOMContentLoaded", function () {
       arrow.classList.add("rotate-90");
       childrenContainer.classList.remove("hidden");
       expandedFolders.add(path);
-
-      // Mark as recently expanded to prevent duplicate tree refresh
-      recentlyExpandedFolders.add(path);
 
       // Load children only when expanding
       // Clear old data first, then load fresh data from FTP server
@@ -1842,39 +1991,36 @@ document.addEventListener("DOMContentLoaded", function () {
    * @param {string} path - Folder path that was modified
    */
   function notifyFolderContentsChanged(path) {
-    window.dispatchEvent(new CustomEvent("foldercontentsloaded", {
-      detail: { path: path }
-    }));
+    window.dispatchEvent(
+      new CustomEvent("foldercontentsloaded", {
+        detail: { path: path },
+      })
+    );
   }
 
   let treeRefreshTimeout = null;
   const TREE_REFRESH_DEBOUNCE = 300; // 300ms debounce
-  const recentlyExpandedFolders = new Set(); // Track folders that just expanded
 
-  window.addEventListener("foldercontentsloaded", function(event) {
+  window.addEventListener("foldercontentsloaded", function (event) {
     const path = event.detail.path;
 
     // Debounce: Prevent rapid duplicate refreshes
     clearTimeout(treeRefreshTimeout);
 
     treeRefreshTimeout = setTimeout(() => {
-      // Check if this folder was recently expanded (skip refresh to avoid duplicate)
-      if (recentlyExpandedFolders.has(path)) {
-        recentlyExpandedFolders.delete(path); // Clear the flag
-        return;
-      }
-
       // Find the folder element in tree
       const folderElement = document.querySelector(`[data-path="${path}"]`);
 
       if (folderElement && folderElement.dataset.type === "directory") {
-        const childrenContainer = folderElement.querySelector(`[data-children-for="${path}"]`);
+        const childrenContainer = folderElement.querySelector(
+          `[data-children-for="${path}"]`
+        );
 
-        // Only refresh if folder is expanded and has content
-        if (childrenContainer &&
-            !childrenContainer.classList.contains("hidden") &&
-            childrenContainer.children.length > 0) {
-
+        // Only refresh if folder is expanded (has visible children)
+        if (
+          childrenContainer &&
+          !childrenContainer.classList.contains("hidden")
+        ) {
           const level = parseInt(folderElement.dataset.level) || 0;
 
           // Reload only this folder's children (smart, targeted refresh!)
@@ -1883,14 +2029,15 @@ document.addEventListener("DOMContentLoaded", function () {
           fetch("/api/folder-tree?path=" + encodeURIComponent(path), {
             credentials: "same-origin",
           })
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
               if (data.success && data.tree.length > 0) {
                 renderTree(data.tree, childrenContainer, level + 1);
               } else if (data.tree.length === 0) {
                 // Empty folder
                 const empty = document.createElement("div");
-                empty.className = "px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic";
+                empty.className =
+                  "px-3 py-2 text-sm text-gray-400 dark:text-gray-500 italic";
                 empty.style.paddingLeft = (level + 1) * 16 + 12 + "px";
                 empty.textContent = "Empty";
                 childrenContainer.appendChild(empty);
@@ -1900,6 +2047,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }, TREE_REFRESH_DEBOUNCE);
   });
+
+  // Expose notifyFolderContentsChanged globally so other code can trigger tree refresh
+  window.notifyFolderContentsChanged = notifyFolderContentsChanged;
 
   // Sidebar Resize Functionality
   const sidebar = document.getElementById("sidebar");
@@ -1973,6 +2123,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (contentLoading) contentLoading.classList.remove("hidden");
     listView.classList.add("hidden");
 
+    // Dispatch loading start event (toolbar and other components can listen)
+    window.dispatchEvent(
+      new CustomEvent("loadingstart", {
+        detail: { path },
+      })
+    );
+
     // Update path input
     const pathInput = document.getElementById("pathInput");
     if (pathInput) {
@@ -2000,27 +2157,43 @@ document.addEventListener("DOMContentLoaded", function () {
           // (create, delete, rename, move, upload, etc.)
           // Viewing/navigation operations should NOT trigger tree refresh to avoid unnecessary API calls
 
-          // Call the callback when content is loaded
+          // Call the callback when content is loaded (BEFORE loadingcomplete event)
+          // This allows callback to set toolbar context before toolbar is shown
           if (onComplete) {
             onComplete(data);
           }
-        } else{
+        } else {
           // Folder load failed - call callback to handle error
           if (onComplete) {
             onComplete(data);
           }
         }
+
+        // Dispatch loading complete event AFTER callback executes
+        // This ensures toolbar context is set before toolbar becomes visible
+        window.dispatchEvent(
+          new CustomEvent("loadingcomplete", {
+            detail: { path, success: data.success },
+          })
+        );
       })
       .catch((error) => {
         if (contentLoading) contentLoading.classList.add("hidden");
 
-        // Call callback with error to handle it
+        // Call callback with error to handle it (BEFORE loadingcomplete event)
         if (onComplete) {
           onComplete({
             success: false,
             message: "Unable to connect to server: " + error.message,
           });
         }
+
+        // Dispatch loading complete event even on error (AFTER callback)
+        window.dispatchEvent(
+          new CustomEvent("loadingcomplete", {
+            detail: { path, success: false, error: error.message },
+          })
+        );
       });
   }
 
@@ -2182,8 +2355,8 @@ document.addEventListener("DOMContentLoaded", function () {
                             <button onclick="previewFile('${escapeHtml(
                               file.real_path || file.path
                             )}', '${escapeHtml(
-                              file.extension || ""
-                            )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
+                                file.extension || ""
+                              )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
                                 <i class="fas ${
                                   isImageFile(file.extension)
                                     ? "fa-eye"
@@ -2367,16 +2540,24 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // If empty
-    if (folders.length === 0 && files.length === 0) {
+    const isEmpty = folders.length === 0 && files.length === 0;
+
+    if (isEmpty) {
       const emptyRow = document.createElement("tr");
+      emptyRow.className = "h-full";
       emptyRow.innerHTML = `
-                <td colspan="5" class="px-4 py-12 text-center">
-                    <i class="fas fa-folder-open text-gray-300 dark:text-gray-600 text-5xl mb-3 block"></i>
-                    <p class="text-gray-500 dark:text-gray-400">This folder is empty</p>
+                <td colspan="5" class="relative h-full" style="height: calc(100vh - 280px);">
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <i class="fas fa-folder-open text-gray-300 dark:text-gray-600 text-6xl mb-4"></i>
+                        <p class="text-gray-500 dark:text-gray-400 text-lg">This folder is empty</p>
+                    </div>
                 </td>
             `;
       listViewBody.appendChild(emptyRow);
     }
+
+    // Disable/Enable sort headers and select-all checkbox based on empty state
+    toggleSortAndSelectAll(!isEmpty);
 
     // Store current data for sorting
     window.currentListData = {
@@ -2495,8 +2676,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // Add symlink indicator
     if (item.is_symlink) {
       const symlinkIcon = document.createElement("i");
-      symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
-      symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+      symlinkIcon.className =
+        "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+      symlinkIcon.title = item.symlink_target
+        ? `Symlink → ${item.symlink_target}`
+        : "Symbolic Link";
       nameDiv.appendChild(symlinkIcon);
     }
 
@@ -2642,9 +2826,6 @@ document.addEventListener("DOMContentLoaded", function () {
             childrenContainer.classList.remove("hidden");
             expandedFolders.add(currentPath);
 
-            // Mark as recently expanded to prevent duplicate tree refresh
-            recentlyExpandedFolders.add(currentPath);
-
             // Load children if empty - WAIT for this to complete before continuing
             if (childrenContainer.children.length === 0) {
               await new Promise((resolve) => {
@@ -2681,7 +2862,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const inputPath = pathInput.value.trim();
 
         if (!inputPath) {
-          showDialog("Please enter a path");
+          if (window.showToast) {
+            showToast.warning("No path entered", "Please enter a path");
+          }
           return;
         }
 
@@ -2929,7 +3112,12 @@ function closeImagePreview() {
  */
 function zipSelectedFiles() {
   if (!window.selectedItems || window.selectedItems.length === 0) {
-    showDialog("Please select at least one file or folder to zip.");
+    if (window.showToast) {
+      showToast.warning(
+        "No selection",
+        "Please select at least one file or folder to zip"
+      );
+    }
     return;
   }
 
@@ -2939,11 +3127,12 @@ function zipSelectedFiles() {
   // 2. Create zip archive using command-line tools
   // 3. Return success/failure status
 
-  showDialog(
-    `Zip functionality coming soon!\n\nSelected ${
-      window.selectedItems.length
-    } item(s):\n${window.selectedItems.map((f) => f.name).join("\n")}`
-  );
+  if (window.showToast) {
+    showToast.info(
+      "Coming soon",
+      `Zip functionality will be available soon. Selected ${window.selectedItems.length} item(s)`
+    );
+  }
 }
 
 /**
@@ -2952,7 +3141,12 @@ function zipSelectedFiles() {
  */
 function unzipSelectedFile() {
   if (!window.selectedItems || window.selectedItems.length !== 1) {
-    showDialog("Please select exactly one archive file to unzip.");
+    if (window.showToast) {
+      showToast.warning(
+        "Invalid selection",
+        "Please select exactly one archive file to unzip"
+      );
+    }
     return;
   }
 
@@ -2961,7 +3155,12 @@ function unzipSelectedFile() {
   const extension = selectedFile.name.split(".").pop().toLowerCase();
 
   if (!zipExtensions.includes(extension)) {
-    showDialog("Selected file is not a supported archive format.");
+    if (window.showToast) {
+      showToast.error(
+        "Unsupported format",
+        "Selected file is not a supported archive format"
+      );
+    }
     return;
   }
 
@@ -2972,11 +3171,12 @@ function unzipSelectedFile() {
   // 3. Handle different archive formats
   // 4. Return success/failure status
 
-  showDialog(
-    `Unzip functionality coming soon!\n\nArchive: ${
-      selectedFile.name
-    }\nFormat: ${extension.toUpperCase()}`
-  );
+  if (window.showToast) {
+    showToast.info(
+      "Coming soon",
+      `Unzip functionality will be available soon. Archive: ${selectedFile.name}`
+    );
+  }
 }
 
 /**
@@ -2985,7 +3185,12 @@ function unzipSelectedFile() {
  */
 async function moveSelectedFiles() {
   if (!window.selectedItems || window.selectedItems.length === 0) {
-    showDialog("Please select at least one file or folder to move.");
+    if (window.showToast) {
+      showToast.warning(
+        "No selection",
+        "Please select at least one file or folder to move"
+      );
+    }
     return;
   }
 
@@ -3007,9 +3212,12 @@ async function moveSelectedFiles() {
   );
 
   if (destination) {
-    showDialog(
-      `Move functionality coming soon!\n\nWould move to: ${destination}`
-    );
+    if (window.showToast) {
+      showToast.info(
+        "Coming soon",
+        `Move functionality will be available soon. Destination: ${destination}`
+      );
+    }
   }
 }
 
@@ -3053,7 +3261,12 @@ async function createNewFile() {
   // Validate filename
   const trimmedFilename = filename.trim();
   if (trimmedFilename.includes("/") || trimmedFilename.includes("\\")) {
-    showDialog("Invalid file name: Cannot contain slashes (/ or \\)");
+    if (window.showToast) {
+      showToast.error(
+        "Invalid file name",
+        "Cannot contain slashes (/ or \\\\)"
+      );
+    }
     return;
   }
 
@@ -3094,19 +3307,23 @@ async function createNewFile() {
       // Notify tree that folder contents changed (so tree refreshes to show new file)
       notifyFolderContentsChanged(currentPath);
 
-      // Optionally open the file for editing
-      const shouldEdit = await showConfirm(
-        "File created successfully. Do you want to edit it now?",
-        "File Created"
-      );
-      if (shouldEdit) {
-        navigateTo(data.path, "edit");
+      // Show success toast
+      if (window.showToast) {
+        showToast.success("File created", trimmedFilename);
       }
     } else {
-      showDialog("Failed to create file: " + (data.message || "Unknown error"));
+      // Errors are handled by API interceptor
+      if (window.showToast) {
+        showToast.error(
+          "Failed to create file",
+          data.message || "Unknown error"
+        );
+      }
     }
   } catch (error) {
-    showDialog("Failed to create file: " + error.message);
+    if (window.showToast) {
+      showToast.error("Failed to create file", error.message);
+    }
   }
 }
 
@@ -3131,7 +3348,12 @@ async function createNewFolder() {
   // Validate foldername
   const trimmedFoldername = foldername.trim();
   if (trimmedFoldername.includes("/") || trimmedFoldername.includes("\\")) {
-    showDialog("Invalid folder name: Cannot contain slashes (/ or \\)");
+    if (window.showToast) {
+      showToast.error(
+        "Invalid folder name",
+        "Cannot contain slashes (/ or \\\\)"
+      );
+    }
     return;
   }
 
@@ -3171,21 +3393,23 @@ async function createNewFolder() {
       // Notify tree to refresh (manual dispatch for modification operations only)
       notifyFolderContentsChanged(currentPath);
 
-      // Optionally navigate to the new folder
-      const shouldOpen = await showConfirm(
-        "Folder created successfully. Do you want to open it?",
-        "Folder Created"
-      );
-      if (shouldOpen) {
-        navigateTo(data.path);
+      // Show success toast
+      if (window.showToast) {
+        showToast.success("Folder created", trimmedFoldername);
       }
     } else {
-      showDialog(
-        "Failed to create folder: " + (data.message || "Unknown error")
-      );
+      // Errors are handled by API interceptor
+      if (window.showToast) {
+        showToast.error(
+          "Failed to create folder",
+          data.message || "Unknown error"
+        );
+      }
     }
   } catch (error) {
-    showDialog("Failed to create folder: " + error.message);
+    if (window.showToast) {
+      showToast.error("Failed to create folder", error.message);
+    }
   }
 }
 
@@ -3243,7 +3467,12 @@ function updateParentButtonVisibility() {
 async function editSelected() {
   // Check selection - should be exactly 1 file (button should be disabled otherwise)
   if (window.selectedItems.length !== 1) {
-    showDialog("Please select exactly one file to edit.");
+    if (window.showToast) {
+      showToast.warning(
+        "Invalid selection",
+        "Please select exactly one file to edit"
+      );
+    }
     return;
   }
 
@@ -3251,7 +3480,9 @@ async function editSelected() {
 
   // Double-check it's a file
   if (file.type !== "file") {
-    showDialog("Folders cannot be edited.");
+    if (window.showToast) {
+      showToast.warning("Invalid file type", "Folders cannot be edited");
+    }
     return;
   }
 
@@ -3275,7 +3506,12 @@ async function editSelected() {
 async function renameSelected() {
   // Check selection - should be exactly 1 item (button should be disabled otherwise)
   if (window.selectedItems.length !== 1) {
-    showDialog("Please select exactly one item to rename.");
+    if (window.showToast) {
+      showToast.warning(
+        "Invalid selection",
+        "Please select exactly one item to rename"
+      );
+    }
     return;
   }
 
@@ -3301,13 +3537,17 @@ async function renameSelected() {
 
   // Check if name actually changed
   if (trimmedNewName === currentName) {
-    showDialog("The name is the same. No changes made.");
+    if (window.showToast) {
+      showToast.info("No changes", "The name is the same");
+    }
     return;
   }
 
   // Validate new name
   if (trimmedNewName.includes("/") || trimmedNewName.includes("\\")) {
-    showDialog("Invalid name: Cannot contain slashes (/ or \\)");
+    if (window.showToast) {
+      showToast.error("Invalid name", "Cannot contain slashes (/ or \\\\)");
+    }
     return;
   }
 
@@ -3347,14 +3587,23 @@ async function renameSelected() {
       // Notify tree to refresh (manual dispatch for modification operations only)
       notifyFolderContentsChanged(data.parent_path);
 
-      showDialog(
-        `${itemType === "file" ? "File" : "Folder"} renamed successfully!`
-      );
+      // Show success toast
+      if (window.showToast) {
+        showToast.success(
+          `${itemType === "file" ? "File" : "Folder"} renamed`,
+          `${oldName} → ${newName}`
+        );
+      }
     } else {
-      showDialog("Failed to rename: " + (data.message || "Unknown error"));
+      // Errors are handled by API interceptor
+      if (window.showToast) {
+        showToast.error("Failed to rename", data.message || "Unknown error");
+      }
     }
   } catch (error) {
-    showDialog("Failed to rename: " + error.message);
+    if (window.showToast) {
+      showToast.error("Failed to rename", error.message);
+    }
   }
 }
 
@@ -3370,7 +3619,12 @@ async function renameSelected() {
 async function deleteSelected() {
   // Check selection
   if (!window.selectedItems || window.selectedItems.length === 0) {
-    showDialog("Please select at least one item to delete.");
+    if (window.showToast) {
+      showToast.warning(
+        "No selection",
+        "Please select at least one item to delete"
+      );
+    }
     return;
   }
 
@@ -3418,7 +3672,10 @@ async function deleteSelected() {
     if (data.success) {
       // All deleted successfully - show success toast
       if (window.showToast) {
-        showToast.success('Files deleted', `${data.successCount} item(s) removed`, { duration: 3000 });
+        showToast.success(
+          "Files deleted",
+          `${data.successCount} item(s) removed`
+        );
       }
 
       // Get current path for tree refresh
@@ -3456,7 +3713,7 @@ async function deleteSelected() {
     // will automatically show an error toast with the error message
   } catch (error) {
     // Network errors are handled by API interceptor
-    console.error('Delete operation error:', error);
+    console.error("Delete operation error:", error);
   }
 }
 
@@ -3472,7 +3729,12 @@ async function deleteSelected() {
 async function downloadSelected() {
   // Check selection
   if (!window.selectedItems || window.selectedItems.length === 0) {
-    showDialog("Please select at least one file to download.");
+    if (window.showToast) {
+      showToast.warning(
+        "No selection",
+        "Please select at least one file to download"
+      );
+    }
     return;
   }
 
@@ -3480,21 +3742,22 @@ async function downloadSelected() {
   const files = window.selectedItems.filter((item) => item.type === "file");
 
   if (files.length === 0) {
-    showDialog(
-      "Please select at least one file to download.\n\nNote: Folders cannot be downloaded directly."
-    );
+    if (window.showToast) {
+      showToast.warning(
+        "No files selected",
+        "Please select at least one file. Note: Folders cannot be downloaded directly"
+      );
+    }
     return;
   }
 
   if (files.length !== window.selectedItems.length) {
     const folderCount = window.selectedItems.length - files.length;
-    const proceed = await showConfirm(
-      `You have selected ${folderCount} folder(s) which cannot be downloaded.\n\nDo you want to download only the ${files.length} selected file(s)?`,
-      "Download Files"
-    );
-
-    if (!proceed) {
-      return;
+    if (window.showToast) {
+      showToast.info(
+        "Folders skipped",
+        `${folderCount} folder(s) skipped. Downloading ${files.length} file(s)`
+      );
     }
   }
 
@@ -3519,11 +3782,13 @@ async function downloadSelected() {
     }
   }
 
-  // Show success message
-  if (files.length === 1) {
-    showDialog(`Downloading: ${files[0].name}`);
-  } else {
-    showDialog(`Downloading ${files.length} file(s)...`);
+  // Show success toast
+  if (window.showToast) {
+    if (files.length === 1) {
+      showToast.success("Download started", files[0].name);
+    } else {
+      showToast.success("Downloads started", `${files.length} file(s)`);
+    }
   }
 }
 
@@ -3533,7 +3798,12 @@ async function downloadSelected() {
  */
 async function unzipFile(path) {
   if (!path) {
-    showDialog("Please select an archive file to extract");
+    if (window.showToast) {
+      showToast.warning(
+        "Invalid selection",
+        "Please select an archive file to extract"
+      );
+    }
     return;
   }
 
@@ -3580,7 +3850,10 @@ async function unzipFile(path) {
     const data = await response.json();
 
     if (data.success) {
-      showDialog("Archive extracted successfully!");
+      // Show success toast
+      if (window.showToast) {
+        showToast.success("Archive extracted", "Files extracted successfully");
+      }
 
       // Reload tree and refresh current folder
       if (typeof loadFolderTree === "function") {
@@ -3595,6 +3868,8 @@ async function unzipFile(path) {
     }
   } catch (error) {
     console.error("Unzip error:", error);
-    showDialog(`Failed to extract archive: ${error.message}`);
+    if (window.showToast) {
+      showToast.error("Extraction failed", error.message);
+    }
   }
 }

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Controllers;
+namespace WebCodeFTP\Controllers;
 
-use WebFTP\Core\Request;
-use WebFTP\Core\Response;
-use WebFTP\Core\SecurityManager;
-use WebFTP\Core\CsrfToken;
-use WebFTP\Core\Language;
-use WebFTP\Core\Logger;
-use WebFTP\Models\Session;
-use WebFTP\Services\FtpConnectionService;
+use WebCodeFTP\Core\Request;
+use WebCodeFTP\Core\Response;
+use WebCodeFTP\Core\SecurityManager;
+use WebCodeFTP\Core\CsrfToken;
+use WebCodeFTP\Core\Language;
+use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Models\Session;
+use WebCodeFTP\Services\FtpConnectionService;
 
 /**
  * Authentication Controller

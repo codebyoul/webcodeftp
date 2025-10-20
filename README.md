@@ -1,105 +1,95 @@
-# WebFTP - Secure FTP Web Client
+# WebCodeFTP
 
-A modern, secure, and blazing-fast FTP web client built with PHP 8.0+ following MVC architecture and security best practices.
+> 🚀 Modern web-based FTP client with integrated CodeMirror 6 editor
 
-**Perfect for hosting providers**: Users authenticate with their FTP credentials to access their files. All connections are made to YOUR configured FTP server only - eliminating SSRF security risks.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)](https://www.php.net/)
+[![CodeMirror](https://img.shields.io/badge/CodeMirror-6-green.svg)](https://codemirror.net/)
 
-## Features
+**Edit your server code files directly in the browser with powerful syntax highlighting for 50+ programming languages.**
 
-### Security Features
+---
 
-- **CSRF Protection**: Token-based validation on all forms (not simple referer checking)
-- **Session Security**:
-  - Session fingerprinting to prevent hijacking
-  - Automatic session regeneration on login (prevents session fixation)
-  - HttpOnly, Secure, and SameSite cookie flags
-  - Session timeout and validation
-- **Rate Limiting**: Intelligent brute force protection with temporary lockouts
-- **Input Validation**: Comprehensive sanitization on all inputs
-- **Path Traversal Protection**: Prevents directory traversal attacks
-- **Security Headers**: CSP, X-Frame-Options, X-XSS-Protection, etc.
-- **No Credential Storage**: Credentials only in encrypted server-side sessions
-- **SSRF Protection**: Host validation and IP filtering
-- **Error Handling**: No information disclosure in production
+## ☕ Support This Project
 
-### Architecture
+**Enjoying WebCodeFTP?** Your support helps maintain the website, documentation, and keep this project alive!
 
-- **MVC Pattern**: Clean separation of concerns
-- **PHP 8.0+**: Modern PHP with strict types and latest features
-- **Zero Dependencies**: No external libraries (except TailwindCSS CDN for UI)
-- **Performance**: Millisecond response times with optimized code
-- **Maintainable**: Well-documented, clean code structure
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-☕-orange.svg?logo=ko-fi)](https://ko-fi.com/codebyoul)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-💖-pink.svg?logo=github)](https://github.com/sponsors/codebyoul)
+[![PayPal](https://img.shields.io/badge/PayPal-💳-blue.svg?logo=paypal)](https://www.paypal.com/donate/?hosted_button_id=5AX5S82LDZQ8N)
 
-## Directory Structure
+**Any contribution is greatly appreciated** — it helps cover hosting costs, documentation, and future development. Thank you! 🙏
 
-```
-webftp/
-├── public/              # Web root - point your server here
-│   ├── index.php       # Application entry point
-│   └── .htaccess       # Apache configuration
-├── src/
-│   ├── Controllers/    # Request handlers
-│   │   ├── AuthController.php
-│   │   └── DashboardController.php
-│   ├── Models/        # Business logic
-│   │   ├── Session.php
-│   │   └── FtpConnection.php
-│   ├── Views/         # HTML templates
-│   │   ├── login.php
-│   │   └── dashboard.php
-│   └── Core/          # Framework components
-│       ├── Router.php
-│       ├── Request.php
-│       ├── Response.php
-│       ├── SecurityManager.php
-│       └── CsrfToken.php
-├── config/
-│   └── config.php     # All application configuration
-└── logs/              # Application logs
-```
+---
 
-## Requirements
+## ✨ Features
 
-- PHP 8.0 or higher (8.0, 8.1, 8.2, 8.3+ all supported)
-- PHP Extensions:
+- 🎨 **Integrated Code Editor** - CodeMirror 6 with syntax highlighting for 50+ languages
+- 🔒 **Enterprise Security** - CSRF protection, session security, rate limiting, SSRF prevention
+- 🌍 **Multi-Language** - 7 languages supported (English, French, Spanish, German, Italian, Portuguese, Arabic)
+- 🎨 **Dark/Light Theme** - Automatic theme switching with user preference
+- 📁 **File Manager** - Browse, create, rename, delete files and folders
+- ⚡ **Fast & Lightweight** - PHP 8.0+ with zero backend dependencies
+- 🔐 **SSH Support** - Advanced operations (zip, unzip, move) via SSH for better performance
+
+---
+
+## 🚀 Quick Start
+
+### Requirements
+
+- **PHP 8.0+** (8.0, 8.1, 8.2, 8.3)
+- **PHP Extensions:**
   - `ftp` (for FTP connections)
   - `session` (for session management)
-  - `zlib` (optional, for compression)
-- Apache with `mod_rewrite` (or Nginx with proper configuration)
-- HTTPS recommended for production
+  - `ssh2` (optional - for advanced operations)
+  - `zlib` (optional - for compression)
+- **Web Server:** Apache with mod_rewrite OR Nginx
+- **HTTPS** recommended for production
 
-## Installation
-
-### 1. Clone or Copy Files
+### Installation
 
 ```bash
-# Files should be in the webftp directory
-cd /path/to/webftp
+# 1. Clone the repository
+git clone https://github.com/yourusername/webcodeftp.git
+cd webcodeftp
+
+# 2. Install dependencies (optional - autoloader included)
+composer install
+
+# 3. Configure your FTP server
+nano config/config.php
+
+# 4. Set permissions
+chmod 755 logs/
+chmod 644 config/config.php
+
+# 5. Point your web server document root to public/
+# Apache example:
+# DocumentRoot /path/to/webcodeftp/public
 ```
 
-### 2. Configure Web Server
+### Web Server Configuration
 
-**Apache**: Point document root to `public/` directory
-
+**Apache** (create VirtualHost):
 ```apache
 <VirtualHost *:80>
-    ServerName webftp.example.com
-    DocumentRoot /path/to/webftp/public
+    ServerName ftp.example.com
+    DocumentRoot /path/to/webcodeftp/public
 
-    <Directory /path/to/webftp/public>
+    <Directory /path/to/webcodeftp/public>
         AllowOverride All
         Require all granted
     </Directory>
 </VirtualHost>
 ```
 
-**Nginx**: Configure with PHP-FPM
-
+**Nginx**:
 ```nginx
 server {
     listen 80;
-    server_name webftp.example.com;
-    root /path/to/webftp/public;
+    server_name ftp.example.com;
+    root /path/to/webcodeftp/public;
     index index.php;
 
     location / {
@@ -115,234 +105,224 @@ server {
 }
 ```
 
-### 3. Set Permissions
+---
 
-```bash
-# Ensure logs directory is writable
-chmod 755 logs/
+## ⚙️ Configuration File
 
-# Ensure config is readable but not writable by web server
-chmod 644 config/config.php
-```
+WebCodeFTP uses a **single configuration file** at `config/config.php`. This is where you configure:
 
-### 4. Configure Application
-
-Edit `config/config.php` and set your FTP server details:
+### 1. FTP Server Settings
 
 ```php
 'ftp' => [
     'server' => [
-        'host' => 'ftp.hostinoya.com',  // YOUR FTP server hostname
-        'port' => 21,                    // FTP port (21 for FTP, 990 for FTPS)
-        'use_ssl' => false,              // Enable FTPS if your server supports it
-        'passive_mode' => true,          // Use passive mode (recommended)
+        'host' => 'ftp.example.com',  // YOUR FTP server hostname/IP
+        'port' => 21,                  // FTP port (21 for FTP, 990 for FTPS)
+        'use_ssl' => false,            // Enable FTPS if supported
+        'passive_mode' => true,        // Recommended
     ],
+    'timeout' => 30,
+    'operation_timeout' => 120,
 ],
+```
 
-// Set environment
-'environment' => 'production', // or 'development'
+**Security Note:** Users can ONLY connect to your configured FTP server. They cannot specify custom servers, preventing SSRF attacks.
 
-// Enable HTTPS in production
-'security' => [
-    'session' => [
-        'cookie_secure' => true, // Set to false if not using HTTPS
+### 2. SSH Configuration (Optional - Recommended)
+
+**Why use SSH over FTP?** SSH provides **significantly better performance** for advanced operations:
+
+| Operation | FTP Method | SSH Method | Performance |
+|-----------|------------|------------|-------------|
+| **Zip Files** | Download all → Zip locally → Upload | Direct server-side zip | **10-100x faster** |
+| **Unzip Files** | Download → Unzip locally → Upload all | Direct server-side unzip | **10-100x faster** |
+| **Move Files** | Download → Upload to new location → Delete old | Direct server-side move | **Instant** |
+| **Delete Large Folders** | Delete each file individually | Single command | **100x faster** |
+
+**Enable SSH in config:**
+
+```php
+'ssh' => [
+    'enabled' => true,  // Enable SSH features
+
+    'server' => [
+        'host' => 'ssh.example.com',  // SSH server (usually same as FTP)
+        'port' => 22,
+    ],
+
+    'credentials' => [
+        'username' => 'your_ssh_username',  // SSH credentials
+        'password' => 'your_ssh_password',  // (different from FTP)
     ],
 ],
 ```
 
-### 5. Test Installation
+**Benefits:**
+- ✅ **10-100x faster** for zip/unzip operations
+- ✅ **Instant** file/folder moves (no download/upload)
+- ✅ **Batch operations** complete in seconds
+- ✅ **Server-side processing** - no bandwidth waste
 
-Visit your domain: `http://webftp.example.com`
-
-You should see the login page.
-
-## Configuration
-
-All configuration is in `config/config.php`. Key settings:
-
-### Security Settings
+### 3. Security Settings
 
 ```php
 'security' => [
     'session' => [
-        'lifetime' => 3600,        // Session timeout (1 hour)
+        'lifetime' => 3600,        // 1 hour
         'cookie_secure' => true,   // Require HTTPS
-        'cookie_samesite' => 'Strict',
     ],
     'rate_limit' => [
         'max_attempts' => 5,       // Failed login attempts
-        'lockout_duration' => 900, // 15 minutes lockout
+        'lockout_duration' => 900, // 15 minutes
     ],
 ],
 ```
 
-### FTP Settings
+### 4. UI Preferences
 
 ```php
-'ftp' => [
-    // Your FTP Server Configuration
-    'server' => [
-        'host' => 'ftp.hostinoya.com',  // FTP server hostname/IP
-        'port' => 21,                    // FTP port
-        'use_ssl' => false,              // Enable FTPS
-        'passive_mode' => true,          // Passive mode
-    ],
+'ui' => [
+    'default_theme' => 'dark',  // 'light' or 'dark'
+],
 
-    // Connection Settings
-    'timeout' => 30,                     // Connection timeout
-    'operation_timeout' => 120,          // File operation timeout
+'localization' => [
+    'default_language' => 'en',  // en, fr, es, de, it, pt, ar
 ],
 ```
-
-**Security Note**: Users can ONLY connect to the configured FTP server. They cannot specify a different server, eliminating SSRF (Server-Side Request Forgery) attacks.
-
-## Usage
-
-### Login
-
-1. Navigate to the application URL
-2. Enter your FTP credentials:
-   - **Username**: Your FTP username
-   - **Password**: Your FTP password
-3. Click "Sign In to FTP"
-
-**Note**: The FTP server is configured in `config.php` by the administrator. Users only need to provide their credentials.
-
-### Current Features (Phase 1)
-
-- ✅ Secure login with FTP credentials
-- ✅ Session management
-- ✅ Rate limiting / brute force protection
-- ✅ CSRF protection
-- ✅ Security headers
-- ✅ Input validation
-- ✅ Authenticated dashboard (Hello World)
-
-### Planned Features (Future Phases)
-
-- File browser with directory navigation
-- File upload/download
-- File operations (rename, delete, chmod)
-- Text file editor
-- Multiple file selection
-- Drag & drop upload
-- Progress indicators
-- And more...
-
-## Security Hardening
-
-### Production Checklist
-
-- [ ] Enable HTTPS and set `cookie_secure => true`
-- [ ] Set `environment => 'production'` in config
-- [ ] Configure `allowed_hosts` to restrict FTP connections
-- [ ] Set proper file permissions (config: 644, logs: 755)
-- [ ] Keep PHP and all extensions updated
-- [ ] Monitor logs regularly
-- [ ] Use strong session encryption (configured by default)
-- [ ] Consider adding rate limiting at web server level
-- [ ] Enable PHP OPcache for performance
-
-### Session Security
-
-Sessions are protected with:
-- Browser fingerprinting (User-Agent, Accept-Language, etc.)
-- IP address tracking
-- Automatic timeout after inactivity
-- Session ID regeneration on authentication
-- HttpOnly, Secure, SameSite flags
-
-### CSRF Protection
-
-All forms include cryptographically secure tokens:
-- 32-byte random tokens
-- One-time use (tokens are consumed on validation)
-- Time-limited (1 hour expiration)
-- Stored server-side only
-
-## Logging
-
-Logs are written to `logs/app.log` when enabled in config.
-
-```php
-'logging' => [
-    'enabled' => true,
-    'log_auth_attempts' => true,  // Log all login attempts
-    'log_ftp_operations' => false, // Log FTP operations
-],
-```
-
-## Troubleshooting
-
-### "PHP 8.0 or higher is required"
-- Upgrade PHP to version 8.0 or higher
-- Verify: `php -v`
-
-### Session errors
-- Ensure PHP session directory is writable
-- Check: `session.save_path` in php.ini
-
-### "Failed to connect to FTP server"
-- Verify FTP credentials
-- Check firewall allows FTP connections (port 21/990)
-- Ensure `php-ftp` extension is installed
-- Try with/without SSL option
-
-### Rate limiting triggered
-- Wait for lockout duration (default: 15 minutes)
-- Or clear sessions: `rm -rf /tmp/sess_*` (development only)
-
-### "Invalid security token"
-- Ensure cookies are enabled
-- Check `cookie_secure` setting matches HTTP/HTTPS
-- Try clearing browser cookies
-
-## Development
-
-### Environment Setup
-
-```php
-// config/config.php
-'app' => [
-    'environment' => 'development',
-],
-
-'security' => [
-    'session' => [
-        'cookie_secure' => false, // For HTTP development
-    ],
-],
-```
-
-### Error Display
-
-Development mode shows detailed errors. Production mode shows user-friendly error pages.
-
-## Performance
-
-- **Response Time**: < 100ms for most operations
-- **Memory Usage**: < 10MB per request
-- **Concurrent Users**: Handles 100+ concurrent sessions
-- **Optimization**: OPcache recommended for production
-
-## License
-
-This project is built from scratch as a modern replacement for Monsta FTP.
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability, please email: security@example.com
-
-Do NOT open a public issue.
-
-## Support
-
-For questions or issues:
-1. Check this README
-2. Review configuration in `config/config.php`
-3. Check logs in `logs/app.log`
-4. Verify PHP version and extensions
 
 ---
 
-**Built with PHP 8.0+ | Secure by Design | Lightning Fast**
+## 📖 How to Use
+
+### 1. Login
+- Navigate to `https://your-domain.com`
+- Enter your **FTP username and password**
+- Click "Sign In"
+
+### 2. Browse Files
+- Use the **folder tree** (left sidebar) to navigate
+- Click folders to expand/collapse
+- Files appear in the **main list view** (right panel)
+
+### 3. Edit Code Files
+- Click any code file to **open the editor**
+- **Syntax highlighting** automatically detects the language
+- Press `Ctrl+S` (or `Cmd+S` on Mac) to **save**
+- Changes are **saved directly** to the FTP server
+
+### 4. File Operations
+- **Create** new files/folders (toolbar buttons)
+- **Rename** files/folders (select → rename button)
+- **Delete** files/folders (select → delete button)
+- **Download** files (select → download button)
+- **Zip/Unzip** files (if SSH enabled)
+- **Move** files (if SSH enabled)
+
+### 5. Multi-Language & Theme
+- Click your **profile icon** (top-right)
+- Select **language** from dropdown
+- Toggle **theme** (Light/Dark)
+
+---
+
+## 🎨 Supported Languages (Syntax Highlighting)
+
+PHP, JavaScript, TypeScript, HTML, CSS, Python, Java, C, C++, Go, Rust, Ruby, Swift, Kotlin, Scala, SQL, JSON, XML, YAML, Markdown, **and 30+ more!**
+
+---
+
+## 🔒 Security Features
+
+- ✅ **CSRF Protection** - Secure tokens on all forms
+- ✅ **Session Security** - Fingerprinting, IP validation, automatic timeout
+- ✅ **Rate Limiting** - Brute force protection (5 attempts → 15 min lockout)
+- ✅ **SSRF Prevention** - Single configured FTP server only
+- ✅ **Input Validation** - All user input sanitized
+- ✅ **Path Traversal Protection** - Prevents directory escape attacks
+- ✅ **Security Headers** - CSP, X-Frame-Options, X-XSS-Protection
+- ✅ **No Credential Storage** - FTP passwords never logged or stored
+
+---
+
+## 🛠️ Troubleshooting
+
+### "Failed to connect to FTP server"
+- Verify FTP credentials are correct
+- Check firewall allows FTP port (21/990)
+- Ensure `php-ftp` extension is installed: `php -m | grep ftp`
+
+### Session errors
+- Ensure PHP session directory is writable
+- Check `session.save_path` in php.ini
+
+### SSH features not working
+- Install `php-ssh2` extension: `sudo apt install php-ssh2`
+- Verify SSH credentials in `config/config.php`
+- Test SSH connection: `ssh username@hostname`
+
+### "Invalid security token"
+- Enable cookies in your browser
+- If using HTTPS, set `cookie_secure => true` in config
+- If using HTTP (dev), set `cookie_secure => false`
+
+---
+
+## 📄 License
+
+MIT License - Copyright (c) 2025 Abderrahmane Oulmderat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+**Legal Use Restriction**: This software must not be used for any illegal activities or illegal content. Such use is strictly prohibited and will result in immediate termination of the license.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+## 🙏 Acknowledgments
+
+Built with amazing open-source technologies:
+
+- [CodeMirror 6](https://codemirror.net/) - The powerful code editor
+- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
+- [Font Awesome](https://fontawesome.com/) - Beautiful icons
+- PHP 8.0+ - Modern, fast, and secure
+
+---
+
+## ☕ Support & Contribute
+
+**Love WebCodeFTP?** Help keep this project alive and growing!
+
+### Ways to Support:
+
+- ⭐ **Star this repository** - Show your appreciation!
+- ☕ **[Ko-fi](https://ko-fi.com/codebyoul)** - Any help is appreciated to maintain the website, docs, and project
+- 💖 **[GitHub Sponsors](https://github.com/sponsors/codebyoul)** - Support ongoing development
+- 💳 **[PayPal](https://www.paypal.com/donate/?hosted_button_id=5AX5S82LDZQ8N)** - One-time or recurring donations
+- 🐛 **Report Bugs** - Open issues on GitHub
+- 💡 **Suggest Features** - We love new ideas!
+- 🔧 **Contribute Code** - Pull requests welcome!
+
+**Your support makes a real difference!** It helps cover:
+- 🌐 Website hosting costs
+- 📚 Documentation maintenance
+- 🚀 New feature development
+- 🐛 Bug fixes and improvements
+- 💬 Community support
+
+**Thank you for being awesome!** 🙏
+
+---
+
+## 🔐 Security Vulnerabilities
+
+If you discover a security vulnerability, please email: **aoulmderat@gmail.com**
+
+**Do NOT open a public issue** for security concerns.
+
+---
+
+**Built with PHP 8.0+ & CodeMirror 6 | Secure by Design | Lightning Fast | Code Anywhere** 🚀

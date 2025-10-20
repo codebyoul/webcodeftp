@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Models;
+namespace WebCodeFTP\Models;
 
-use WebFTP\Core\SecurityManager;
+use WebCodeFTP\Core\SecurityManager;
 
 /**
  * Secure Session Manager

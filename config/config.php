@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * WebFTP Configuration File
+ * WebCodeFTP Configuration File
  *
  * All application configuration must be defined here.
  * PHP 8.0+ required.
@@ -19,14 +19,14 @@ return [
     // ============================================================================
 
     'app' => [
-        'name' => 'WebFTP',
+        'name' => 'WebCodeFTP',
         'version' => '2.0.0',
         'environment' => 'production', // 'development' or 'production'
         'timezone' => 'UTC',
         'charset' => 'UTF-8',
         // Asset version for cache busting (increment when JS/CSS files change)
         // Format: major.minor.patch (e.g., 1.0.0, 1.0.1, 1.1.0, 2.0.0)
-        'asset_version' => '4.1.0', // Fixed: Tree only refreshes on modifications (create/delete/rename), not on read-only navigation
+        'asset_version' => '5.0.2', // BUG: Fixed undefined variable error in file/folder creation toasts
     ],
 
     // ============================================================================
@@ -49,6 +49,27 @@ return [
         'available_themes' => ['light', 'dark'],
         'theme_cookie_name' => 'webftp_theme',
         'theme_cookie_lifetime' => 31536000, // 1 year in seconds
+    ],
+
+    // ============================================================================
+    // TOAST NOTIFICATIONS
+    // ============================================================================
+
+    'toast' => [
+        'max_toasts' => 5,                  // Maximum simultaneous toasts
+        'animation_duration' => 300,        // Slide-in/out animation speed in milliseconds
+        'position' => 'bottom-right',       // Toast position: 'top-right', 'top-left', 'bottom-right', 'bottom-left'
+
+        // Duration per toast type (in milliseconds) - Professional UX standards
+        'durations' => [
+            'error' => 8000,                // 8 seconds - Critical messages, users need time to read
+            'warning' => 6000,              // 6 seconds - Important information requiring attention
+            'success' => 3000,              // 3 seconds - Quick confirmation, less cognitive load
+            'info' => 5000,                 // 5 seconds - Moderate importance, informational
+        ],
+
+        // Fallback duration for custom types or when type not specified
+        'default_duration' => 5000,         // 5 seconds
     ],
 
     // ============================================================================
@@ -170,7 +191,7 @@ return [
 
     'logging' => [
         'enabled' => true,
-        'level' => 'error', // 'debug', 'info', 'warning', 'error'
+        'level' => 'debug', // 'debug', 'info', 'warning', 'error'
         'log_path' => __DIR__ . '/../logs/app.log',
         'log_auth_attempts' => true, // Log all authentication attempts
         'log_ftp_operations' => false, // Log FTP operations (may be verbose)

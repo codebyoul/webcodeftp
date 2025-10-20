@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * WebFTP - Secure FTP Web Client
+ * WebCodeFTP - Web-Based FTP Client with Integrated Code Editor
  *
- * Modern, secure, fast FTP client built with PHP 8.0+
+ * Modern, secure, fast FTP client with CodeMirror editor built with PHP 8.0+
  * Follows MVC pattern with enterprise-grade security.
  *
  * Entry Point - All requests are routed through this file.
@@ -44,42 +44,20 @@ if ($config['performance']['enable_compression'] && extension_loaded('zlib')) {
     ini_set('zlib.output_compression_level', (string)$config['performance']['compression_level']);
 }
 
-// Autoloader for classes
-spl_autoload_register(function (string $class) use ($config) {
-    // Convert namespace to file path
-    // WebFTP\Core\SecurityManager -> src/Core/SecurityManager.php
-    $prefix = 'WebFTP\\';
-    $baseDir = $config['paths']['src'] . '/';
-
-    // Check if class uses our namespace
-    $len = strlen($prefix);
-    if (strncmp($prefix, $class, $len) !== 0) {
-        return;
-    }
-
-    // Get relative class name
-    $relativeClass = substr($class, $len);
-
-    // Convert to file path
-    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
-
-    // Load file if exists
-    if (file_exists($file)) {
-        require $file;
-    }
-});
+// Load Composer autoloader
+require __DIR__ . '/../vendor/autoload.php';
 
 // Import required classes
-use WebFTP\Core\Router;
-use WebFTP\Core\Request;
-use WebFTP\Core\Response;
-use WebFTP\Core\SecurityManager;
-use WebFTP\Core\CsrfToken;
-use WebFTP\Core\ConfigValidator;
-use WebFTP\Core\Logger;
-use WebFTP\Models\Session;
-use WebFTP\Controllers\AuthController;
-use WebFTP\Controllers\FileManagerController;
+use WebCodeFTP\Core\Router;
+use WebCodeFTP\Core\Request;
+use WebCodeFTP\Core\Response;
+use WebCodeFTP\Core\SecurityManager;
+use WebCodeFTP\Core\CsrfToken;
+use WebCodeFTP\Core\ConfigValidator;
+use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Models\Session;
+use WebCodeFTP\Controllers\AuthController;
+use WebCodeFTP\Controllers\FileManagerController;
 
 // Initialize Logger
 Logger::init($config);
@@ -252,7 +230,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error - WebFTP</title>
+    <title>Error - WebCodeFTP</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen flex items-center justify-center p-4">
@@ -278,7 +256,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error - WebFTP</title>
+    <title>Error - WebCodeFTP</title>
     <style>
         body { font-family: monospace; background: #1e293b; color: #e2e8f0; padding: 20px; }
         .error { background: #dc2626; color: white; padding: 15px; border-radius: 5px; margin-bottom: 20px; }

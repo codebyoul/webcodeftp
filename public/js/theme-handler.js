@@ -1,4 +1,4 @@
-// WebFTP Theme Handler
+// WebCodeFTP Theme Handler
 // Manages dark/light theme switching and language preferences
 
 // Apply theme IMMEDIATELY (before page renders - prevents flash)

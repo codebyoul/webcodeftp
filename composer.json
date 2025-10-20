@@ -1,0 +1,51 @@
+{
+    "name": "webcodeftp/webcodeftp",
+    "description": "WebCodeFTP - Web-Based FTP Client with Integrated Code Editor (CodeMirror)",
+    "type": "project",
+    "keywords": [
+        "ftp",
+        "web-ftp",
+        "code-editor",
+        "codemirror",
+        "file-manager",
+        "hosting",
+        "ispconfig",
+        "cpanel",
+        "web-ide"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Abderrahmane Oulmderat",
+            "email": "aoulmderat@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {},
+    "autoload": {
+        "psr-4": {
+            "WebCodeFTP\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "WebCodeFTP\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "echo 'No tests configured yet'",
+        "check": "echo 'No code quality checks configured yet'",
+        "format": "echo 'No code formatting configured yet'"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {}
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

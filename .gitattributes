@@ -1,160 +1,147 @@
 # ============================================================================
-# WebCodeFTP - Git Ignore File
+# WebCodeFTP - Git Attributes
 # ============================================================================
 
-# ============================================================================
-# COMPOSER / DEPENDENCIES
-# ============================================================================
-/vendor/
-composer.lock
-composer.phar
+# Auto detect text files and perform LF normalization
+* text=auto
 
 # ============================================================================
-# LOGS
+# SOURCE CODE
 # ============================================================================
-/logs/*.log
-/logs/*.txt
-!/logs/.gitkeep
+*.php text eol=lf diff=php
+*.js text eol=lf
+*.ts text eol=lf
+*.jsx text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+*.less text eol=lf
 
 # ============================================================================
-# ENVIRONMENT & CONFIGURATION
+# TEMPLATES / MARKUP
 # ============================================================================
-.env
-.env.local
-.env.*.local
-config/config.local.php
+*.html text eol=lf
+*.htm text eol=lf
+*.xml text eol=lf
+*.svg text eol=lf
 
 # ============================================================================
-# SYSTEM FILES
+# CONFIGURATION / DATA
 # ============================================================================
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-Desktop.ini
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.conf text eol=lf
+*.config text eol=lf
+.htaccess text eol=lf
+.editorconfig text eol=lf
 
 # ============================================================================
-# IDE / EDITOR FILES
+# DOCUMENTATION
 # ============================================================================
-
-# PhpStorm / IntelliJ IDEA
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# Visual Studio Code
-.vscode/
-*.code-workspace
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# NetBeans
-nbproject/
-nbbuild/
-dist/
-nbdist/
-.nb-gradle/
-
-# Eclipse
-.buildpath
-.project
-.settings/
-*.launch
-
-# Vim
-*.swp
-*.swo
-*~
-.netrwhist
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+LICENSE text eol=lf
+README text eol=lf
+CHANGELOG text eol=lf
+CONTRIBUTING text eol=lf
 
 # ============================================================================
-# PHP / CODE QUALITY TOOLS
+# SCRIPTS
 # ============================================================================
-.php_cs.cache
-.php-cs-fixer.cache
-.phpunit.result.cache
-.phpcs-cache
-phpunit.xml
-.psalm/
-.phpstan/
+*.sh text eol=lf
+*.bash text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
 
 # ============================================================================
-# TEMPORARY FILES
+# IMAGES
 # ============================================================================
-/tmp/
-/temp/
-*.tmp
-*.bak
-*.cache
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.svg text
+*.bmp binary
+*.tiff binary
 
 # ============================================================================
-# SSL CERTIFICATES (Development)
+# FONTS
 # ============================================================================
-/ssl/*.pem
-/ssl/*.key
-/ssl/*.crt
-/ssl/*.csr
-!/ssl/.gitkeep
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
 
 # ============================================================================
-# NODE MODULES (if ever added in future)
+# ARCHIVES
 # ============================================================================
-node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
+*.zip binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.7z binary
+*.rar binary
 
 # ============================================================================
-# BUILD / DISTRIBUTION
+# DOCUMENTS
 # ============================================================================
-/build/
-/dist/
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.ppt binary
+*.pptx binary
 
 # ============================================================================
-# BACKUP FILES
+# MEDIA
 # ============================================================================
-*.backup
-*.old
-*.orig
+*.mp4 binary
+*.mov binary
+*.avi binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
 
 # ============================================================================
-# CUSTOM DEPLOYMENT FILES
+# COMPOSER
 # ============================================================================
-deploy.sh
-.deployment
+composer.json text eol=lf
+composer.lock text eol=lf linguist-generated=true
 
 # ============================================================================
-# TEST FILES
+# GIT
 # ============================================================================
-/tests/tmp/
-/tests/cache/
-coverage/
-.phpunit.cache/
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.gitkeep text eol=lf
 
 # ============================================================================
-# MCP / PLAYWRIGHT
+# GITHUB
 # ============================================================================
-.playwright-mcp/
+.github/**/* text eol=lf
 
 # ============================================================================
-# OTHER
+# EXPORT IGNORE (files not included in git archive)
 # ============================================================================
-.htpasswd
-error_log
+.gitattributes export-ignore
+.gitignore export-ignore
+.github/ export-ignore
+.editorconfig export-ignore
+.php-cs-fixer.dist.php export-ignore
+phpunit.xml export-ignore
+tests/ export-ignore
+.vscode/ export-ignore
+.idea/ export-ignore
+CONTRIBUTING.md export-ignore
+CODE_OF_CONDUCT.md export-ignore
+CLAUDE.md export-ignore

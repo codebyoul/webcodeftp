@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Core;
+namespace WebCodeFTP\Core;
 
 /**
  * HTTP Request Handler
@@ -102,6 +102,19 @@ class Request
     public function input(string $key, mixed $default = null, int $maxLength = 1000): mixed
     {
         return $this->post($key) ?? $this->get($key, $default, $maxLength);
+    }
+
+    /**
+     * Get raw POST parameter without sanitization
+     * WARNING: Use only for JSON data that will be decoded. Never output directly to HTML.
+     *
+     * @param string $key Parameter name
+     * @param mixed $default Default value if not set
+     * @return mixed Raw value
+     */
+    public function rawPost(string $key, mixed $default = null): mixed
+    {
+        return $_POST[$key] ?? $default;
     }
 
     /**

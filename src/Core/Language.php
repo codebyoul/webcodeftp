@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Core;
+namespace WebCodeFTP\Core;
 
-use WebFTP\Core\Logger;
+use WebCodeFTP\Core\Logger;
 
 /**
  * Language Helper

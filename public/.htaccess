@@ -1,4 +1,4 @@
-# WebFTP - Apache Configuration
+# WebCodeFTP - Apache Configuration
 # Routes all requests through index.php
 
 <IfModule mod_rewrite.c>

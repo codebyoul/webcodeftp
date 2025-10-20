@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Services;
+namespace WebCodeFTP\Services;
 
 use FTP\Connection;
-use WebFTP\Core\SecurityManager;
-use WebFTP\Core\Logger;
+use WebCodeFTP\Core\SecurityManager;
+use WebCodeFTP\Core\Logger;
 
 /**
  * FTP Connection Service

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Core;
+namespace WebCodeFTP\Core;
 
 /**
  * Simple Router

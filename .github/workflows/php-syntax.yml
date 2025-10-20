@@ -1,0 +1,34 @@
+name: PHP Syntax Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  syntax-check:
+    name: PHP ${{ matrix.php-version }} Syntax Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['8.0', '8.1', '8.2', '8.3']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: ftp, session, zlib
+          coverage: none
+
+      - name: Check PHP syntax
+        run: |
+          find . -path ./vendor -prune -o -name "*.php" -print0 | xargs -0 -n1 php -l
+
+      - name: Display PHP version
+        run: php -v

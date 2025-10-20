@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace WebFTP\Services;
+namespace WebCodeFTP\Services;
 
-use WebFTP\Core\SecurityManager;
+use WebCodeFTP\Core\SecurityManager;
 
 /**
  * SSH Operations Service
