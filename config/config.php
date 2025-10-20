@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * WebCodeFTP Configuration File
+ * WebCodeFTP Configuration File.
  *
  * All application configuration must be defined here.
  * PHP 8.0+ required.

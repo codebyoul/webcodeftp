@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace WebCodeFTP\Services;
 
 use FTP\Connection;
-use WebCodeFTP\Core\SecurityManager;
 use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Core\SecurityManager;
 
 /**
  * FTP Operations Service

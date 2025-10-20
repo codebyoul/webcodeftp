@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Portuguese translations
+ * Portuguese translations.
  */
 
 return [

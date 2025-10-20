@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * WebCodeFTP - Web-Based FTP Client with Integrated Code Editor
+ * WebCodeFTP - Web-Based FTP Client with Integrated Code Editor.
  *
  * Modern, secure, fast FTP client with CodeMirror editor built with PHP 8.0+
  * Follows MVC pattern with enterprise-grade security.
@@ -41,23 +41,23 @@ date_default_timezone_set($config['app']['timezone']);
 // Enable compression if configured
 if ($config['performance']['enable_compression'] && extension_loaded('zlib')) {
     ini_set('zlib.output_compression', '1');
-    ini_set('zlib.output_compression_level', (string)$config['performance']['compression_level']);
+    ini_set('zlib.output_compression_level', (string) $config['performance']['compression_level']);
 }
 
 // Load Composer autoloader
 require __DIR__ . '/../vendor/autoload.php';
 
 // Import required classes
-use WebCodeFTP\Core\Router;
-use WebCodeFTP\Core\Request;
-use WebCodeFTP\Core\Response;
-use WebCodeFTP\Core\SecurityManager;
-use WebCodeFTP\Core\CsrfToken;
-use WebCodeFTP\Core\ConfigValidator;
-use WebCodeFTP\Core\Logger;
-use WebCodeFTP\Models\Session;
 use WebCodeFTP\Controllers\AuthController;
 use WebCodeFTP\Controllers\FileManagerController;
+use WebCodeFTP\Core\ConfigValidator;
+use WebCodeFTP\Core\CsrfToken;
+use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Core\Request;
+use WebCodeFTP\Core\Response;
+use WebCodeFTP\Core\Router;
+use WebCodeFTP\Core\SecurityManager;
+use WebCodeFTP\Models\Session;
 
 // Initialize Logger
 Logger::init($config);

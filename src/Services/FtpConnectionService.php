@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace WebCodeFTP\Services;
 
 use FTP\Connection;
-use WebCodeFTP\Core\SecurityManager;
 use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Core\SecurityManager;
 
 /**
  * FTP Connection Service
@@ -24,8 +24,7 @@ class FtpConnectionService
     public function __construct(
         private array $config,
         private SecurityManager $security
-    ) {
-    }
+    ) {}
 
     /**
      * Connect to FTP server

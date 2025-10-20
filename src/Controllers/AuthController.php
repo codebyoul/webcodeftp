@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace WebCodeFTP\Controllers;
 
-use WebCodeFTP\Core\Request;
-use WebCodeFTP\Core\Response;
-use WebCodeFTP\Core\SecurityManager;
 use WebCodeFTP\Core\CsrfToken;
 use WebCodeFTP\Core\Language;
 use WebCodeFTP\Core\Logger;
+use WebCodeFTP\Core\Request;
+use WebCodeFTP\Core\Response;
+use WebCodeFTP\Core\SecurityManager;
 use WebCodeFTP\Models\Session;
 use WebCodeFTP\Services\FtpConnectionService;
 
 /**
- * Authentication Controller
+ * Authentication Controller.
  *
  * Handles user authentication via FTP credentials.
  */
