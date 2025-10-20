@@ -26,7 +26,7 @@ return [
         'charset' => 'UTF-8',
         // Asset version for cache busting (increment when JS/CSS files change)
         // Format: major.minor.patch (e.g., 1.0.0, 1.0.1, 1.1.0, 2.0.0)
-        'asset_version' => '3.2.8',
+        'asset_version' => '3.4.3',
     ],
 
     // ============================================================================

@@ -562,63 +562,90 @@ class FtpOperationsService
     }
 
     /**
-     * Delete file from FTP server
+     * Delete files and/or folders (supports single or batch delete)
      *
-     * @param string $remotePath Remote file path
-     * @return array ['success' => bool, 'message' => string]
+     * @param string|array $paths Single path string or array of paths
+     * @return array ['success' => bool, 'results' => array, 'successCount' => int, 'failedCount' => int, 'message' => string]
      */
-    public function deleteFile(string $remotePath): array
+    public function delete(string|array $paths): array
     {
+        // Convert single path to array for uniform processing
+        if (is_string($paths)) {
+            $paths = [$paths];
+        }
+
         if (!$this->connectionService->isConnected()) {
-            Logger::ftp("deleteFile", ['reason' => 'Not connected', 'path' => $remotePath], false);
-            return ['success' => false, 'message' => 'Not connected to FTP server'];
+            Logger::ftp("delete", ['reason' => 'Not connected', 'count' => count($paths)], false);
+            return [
+                'success' => false,
+                'message' => 'Not connected to FTP server',
+                'results' => [],
+                'successCount' => 0,
+                'failedCount' => count($paths)
+            ];
         }
 
         $connection = $this->connectionService->getConnection();
         if (!$connection) {
-            return ['success' => false, 'message' => 'FTP connection not available'];
+            return [
+                'success' => false,
+                'message' => 'FTP connection not available',
+                'results' => [],
+                'successCount' => 0,
+                'failedCount' => count($paths)
+            ];
         }
 
-        $result = @ftp_delete($connection, $remotePath);
+        $results = [];
+        $successCount = 0;
+        $failedCount = 0;
 
-        if (!$result) {
-            Logger::ftp("deleteFile", ['path' => $remotePath], false);
-            return ['success' => false, 'message' => 'Failed to delete file'];
+        foreach ($paths as $path) {
+            // Check if path is a directory
+            $isDir = $this->isDirectory($path);
+
+            if ($isDir) {
+                // Delete directory recursively
+                $result = $this->deleteFolderRecursive($connection, $path);
+            } else {
+                // Delete file
+                $result = @ftp_delete($connection, $path);
+            }
+
+            if ($result) {
+                $successCount++;
+                $results[] = [
+                    'path' => $path,
+                    'success' => true,
+                    'type' => $isDir ? 'directory' : 'file'
+                ];
+                Logger::ftp("delete:item", ['path' => $path, 'type' => $isDir ? 'directory' : 'file'], true);
+            } else {
+                $failedCount++;
+                $results[] = [
+                    'path' => $path,
+                    'success' => false,
+                    'message' => 'Failed to delete ' . ($isDir ? 'directory' : 'file')
+                ];
+                Logger::ftp("delete:item", ['path' => $path, 'type' => $isDir ? 'directory' : 'file'], false);
+            }
         }
 
-        Logger::ftp("deleteFile", ['path' => $remotePath], true);
+        Logger::ftp("delete", [
+            'total' => count($paths),
+            'success' => $successCount,
+            'failed' => $failedCount
+        ], $failedCount === 0);
 
-        return ['success' => true, 'message' => 'File deleted successfully'];
-    }
-
-    /**
-     * Delete folder from FTP server (recursive)
-     *
-     * @param string $remotePath Remote folder path
-     * @return array ['success' => bool, 'message' => string]
-     */
-    public function deleteFolder(string $remotePath): array
-    {
-        if (!$this->connectionService->isConnected()) {
-            Logger::ftp("deleteFolder", ['reason' => 'Not connected', 'path' => $remotePath], false);
-            return ['success' => false, 'message' => 'Not connected to FTP server'];
-        }
-
-        $connection = $this->connectionService->getConnection();
-        if (!$connection) {
-            return ['success' => false, 'message' => 'FTP connection not available'];
-        }
-
-        $result = $this->deleteFolderRecursive($connection, $remotePath);
-
-        if (!$result) {
-            Logger::ftp("deleteFolder", ['path' => $remotePath], false);
-            return ['success' => false, 'message' => 'Failed to delete folder'];
-        }
-
-        Logger::ftp("deleteFolder", ['path' => $remotePath], true);
-
-        return ['success' => true, 'message' => 'Folder deleted successfully'];
+        return [
+            'success' => $failedCount === 0,
+            'results' => $results,
+            'successCount' => $successCount,
+            'failedCount' => $failedCount,
+            'message' => $failedCount === 0
+                ? "Successfully deleted {$successCount} item(s)"
+                : "Deleted {$successCount} item(s), failed to delete {$failedCount} item(s)"
+        ];
     }
 
     /**

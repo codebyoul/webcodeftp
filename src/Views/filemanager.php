@@ -41,9 +41,6 @@
     </script>
 
     <!-- Pass PHP variables to JavaScript -->
-    <!-- API Interceptor - MUST load FIRST to handle 401 responses -->
-    <script src="/js/api-interceptor.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0') ?>"></script>
-
     <script>
         // Global configuration from PHP
         window.FILE_ICON_CONFIG = <?= json_encode($file_icons) ?>;
@@ -176,12 +173,6 @@
                     </div>
                 </div>
 
-                <!-- Status Bar -->
-                <div id="statusBar" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-                    <p id="statusBarText" class="text-sm text-gray-500 dark:text-gray-400 font-medium transition-colors duration-200">
-                        <span id="selectedCount">0</span> <?= t('items_selected', 'items selected') ?>
-                    </p>
-                </div>
             </aside>
 
             <!-- Resize Handle -->
@@ -191,7 +182,7 @@
             <main class="flex-1 flex flex-col overflow-hidden">
 
                 <!-- Normal File Manager Toolbar -->
-                <div id="fileManagerToolbar" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                <div id="fileManagerToolbar" class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
                     <div class="flex items-center justify-between gap-4">
 
                         <!-- Left: Action Icons -->
@@ -273,7 +264,7 @@
                 </div>
 
                 <!-- Editor Toolbar (shown when editor is active) -->
-                <div id="editorToolbar" class="hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+                <div id="editorToolbar" class="hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
                     <div class="flex items-center justify-between">
                         <!-- Left: File Info & Actions -->
                         <div class="flex items-center gap-3">
@@ -440,11 +431,19 @@
                 </div>
 
             </div>
+
+            <!-- Status Bar (Sticky at bottom) -->
+            <div id="statusBar" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors duration-200 flex-shrink-0">
+                <p id="statusBarText" class="text-sm text-gray-500 dark:text-gray-400 font-medium transition-colors duration-200">
+                    <span id="selectedCount">0</span> <?= t('items_selected', 'items selected') ?>
+                </p>
+            </div>
+
         </main>
         </div>
     </div>
 
-    <!-- Custom Dialog Modal -->
+    <!-- Custom Dialog Modal (Generic & Reusable) -->
     <div id="customDialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 transition-opacity duration-200">
         <div id="customDialogBox" class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full mx-4 transform transition-transform duration-200 scale-95">
             <!-- Dialog Header -->
@@ -452,9 +451,30 @@
                 <h3 id="customDialogTitle" class="text-lg font-semibold text-gray-900 dark:text-white"></h3>
             </div>
 
-            <!-- Dialog Body -->
+            <!-- Dialog Body (Generic Content Areas) -->
             <div id="customDialogBody" class="px-6 py-4">
+                <!-- Simple Message (for basic dialogs) -->
                 <p id="customDialogMessage" class="text-gray-700 dark:text-gray-300 whitespace-pre-line"></p>
+
+                <!-- Summary Section (for delete, move, copy operations) -->
+                <div id="customDialogSummary" class="hidden">
+                    <p id="customDialogSummaryText" class="text-gray-700 dark:text-gray-300 font-medium mb-3"></p>
+                </div>
+
+                <!-- Scrollable Item List (for showing files/folders) -->
+                <div id="customDialogItemList" class="hidden bg-gray-50 dark:bg-gray-900 rounded-lg p-3 max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 my-3">
+                    <ul id="customDialogItems" class="space-y-1 text-sm"></ul>
+                </div>
+
+                <!-- Warning/Alert Section (for destructive actions) -->
+                <div id="customDialogWarning" class="hidden mt-3">
+                    <p id="customDialogWarningText" class="text-red-600 dark:text-red-400 text-sm font-medium flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="customDialogWarningMessage"></span>
+                    </p>
+                </div>
+
+                <!-- Input Field (for prompt dialogs) -->
                 <input id="customDialogInput" type="text" class="mt-4 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent hidden">
             </div>
 
@@ -470,7 +490,41 @@
         </div>
     </div>
 
+    <!-- Toast Notification Container (Top-right, stackable) -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-3 pointer-events-none max-w-md">
+        <!-- Toasts will be dynamically inserted here -->
+    </div>
+
+    <!-- Toast Template (Hidden, cloned for each notification) -->
+    <template id="toastTemplate">
+        <div class="toast pointer-events-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl border-l-4 p-4 transform transition-all duration-300 translate-x-full opacity-0">
+            <div class="flex items-start gap-3">
+                <!-- Icon (changes based on type) -->
+                <div class="flex-shrink-0">
+                    <i class="toast-icon text-xl"></i>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 min-w-0">
+                    <p class="toast-title font-semibold text-sm"></p>
+                    <p class="toast-message text-xs mt-1 opacity-90"></p>
+                </div>
+
+                <!-- Close button -->
+                <button class="toast-close flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors" aria-label="Close notification">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </template>
+
     <!-- Vanilla JavaScript for Interactivity -->
+    <!-- Toast Notifications (Load FIRST - global API) -->
+    <script src="/js/toast-notifications.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0') ?>"></script>
+
+    <!-- API Interceptor (Load SECOND - uses toast API) -->
+    <script src="/js/api-interceptor.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0') ?>"></script>
+
     <!-- File Manager JavaScript (External) -->
     <script src="/js/filemanager.js?v=<?= htmlspecialchars($asset_version ?? '1.0.0') ?>"></script>
 

@@ -247,6 +247,184 @@ window.showPrompt = function (message, defaultValue = "", title = "Input") {
 };
 
 /**
+ * Show elite delete confirmation dialog with smart handling for large selections
+ * Uses generic dialog content areas (no HTML building in JS!)
+ * @param {Array} items - Array of selected items to delete
+ * @returns {Promise<boolean>} Resolves with true if confirmed, false if cancelled
+ */
+window.showDeleteConfirm = function (items) {
+  return new Promise((resolve) => {
+    const dialog = document.getElementById("customDialog");
+    const dialogBox = document.getElementById("customDialogBox");
+    const titleEl = document.getElementById("customDialogTitle");
+    const messageEl = document.getElementById("customDialogMessage");
+    const summarySection = document.getElementById("customDialogSummary");
+    const summaryText = document.getElementById("customDialogSummaryText");
+    const itemListSection = document.getElementById("customDialogItemList");
+    const itemsUl = document.getElementById("customDialogItems");
+    const warningSection = document.getElementById("customDialogWarning");
+    const warningMessage = document.getElementById("customDialogWarningMessage");
+    const inputEl = document.getElementById("customDialogInput");
+    const confirmBtn = document.getElementById("customDialogConfirm");
+    const cancelBtn = document.getElementById("customDialogCancel");
+
+    // Count file types
+    const fileCount = items.filter(item => item.type === 'file').length;
+    const folderCount = items.filter(item => item.type === 'folder').length;
+    const totalCount = items.length;
+
+    // Build summary
+    let summary = "";
+    if (fileCount > 0 && folderCount > 0) {
+      summary = `${fileCount} file${fileCount !== 1 ? 's' : ''} and ${folderCount} folder${folderCount !== 1 ? 's' : ''}`;
+    } else if (fileCount > 0) {
+      summary = `${fileCount} file${fileCount !== 1 ? 's' : ''}`;
+    } else {
+      summary = `${folderCount} folder${folderCount !== 1 ? 's' : ''}`;
+    }
+
+    // Set title
+    titleEl.textContent = "Confirm Deletion";
+
+    // Hide basic message, show summary section
+    messageEl.textContent = "";
+    summarySection.classList.remove("hidden");
+    summaryText.textContent = `Are you sure you want to delete ${summary}?`;
+
+    // Populate item list
+    itemsUl.innerHTML = "";
+    const MAX_DISPLAY = 10;
+
+    if (totalCount <= MAX_DISPLAY) {
+      // Show all items
+      items.forEach(item => {
+        const li = document.createElement("li");
+        li.className = "flex items-center gap-2 text-gray-700 dark:text-gray-300";
+
+        const icon = document.createElement("i");
+        icon.className = item.type === 'folder'
+          ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
+          : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "truncate";
+        nameSpan.textContent = item.name;
+
+        li.appendChild(icon);
+        li.appendChild(nameSpan);
+        itemsUl.appendChild(li);
+      });
+    } else {
+      // Show first 10 items
+      items.slice(0, MAX_DISPLAY).forEach(item => {
+        const li = document.createElement("li");
+        li.className = "flex items-center gap-2 text-gray-700 dark:text-gray-300";
+
+        const icon = document.createElement("i");
+        icon.className = item.type === 'folder'
+          ? "fas fa-folder text-blue-500 dark:text-blue-400 w-4"
+          : "fas fa-file text-gray-500 dark:text-gray-400 w-4";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "truncate";
+        nameSpan.textContent = item.name;
+
+        li.appendChild(icon);
+        li.appendChild(nameSpan);
+        itemsUl.appendChild(li);
+      });
+
+      // Add "and X more..." item
+      const remaining = totalCount - MAX_DISPLAY;
+      const moreLi = document.createElement("li");
+      moreLi.className = "flex items-center gap-2 text-gray-500 dark:text-gray-400 italic mt-2 pt-2 border-t border-gray-300 dark:border-gray-600";
+
+      const moreIcon = document.createElement("i");
+      moreIcon.className = "fas fa-ellipsis-h w-4";
+
+      const moreSpan = document.createElement("span");
+      moreSpan.textContent = `and ${remaining} more item${remaining !== 1 ? 's' : ''}...`;
+
+      moreLi.appendChild(moreIcon);
+      moreLi.appendChild(moreSpan);
+      itemsUl.appendChild(moreLi);
+    }
+
+    // Show item list section
+    itemListSection.classList.remove("hidden");
+
+    // Show warning section
+    warningSection.classList.remove("hidden");
+    warningMessage.textContent = "This action cannot be undone!";
+
+    // Hide input, show cancel button
+    inputEl.classList.add("hidden");
+    cancelBtn.classList.remove("hidden");
+    confirmBtn.textContent = "Delete";
+    confirmBtn.className = "px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition font-medium";
+    cancelBtn.textContent = "Cancel";
+
+    // Show dialog with animation
+    dialog.classList.remove("hidden");
+    dialog.classList.add("flex");
+    dialog.offsetHeight;
+    dialog.classList.remove("opacity-0");
+    dialogBox.classList.remove("scale-95");
+    dialogBox.classList.add("scale-100");
+
+    // Handle Delete click
+    const handleConfirm = () => {
+      closeDialog();
+      resolve(true);
+    };
+
+    // Handle Cancel click
+    const handleCancel = () => {
+      closeDialog();
+      resolve(false);
+    };
+
+    // Handle Escape key
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        closeDialog();
+        resolve(false);
+      }
+    };
+
+    const closeDialog = () => {
+      dialog.classList.add("opacity-0");
+      dialogBox.classList.remove("scale-100");
+      dialogBox.classList.add("scale-95");
+      setTimeout(() => {
+        dialog.classList.remove("flex");
+        dialog.classList.add("hidden");
+        // Clean up content areas
+        messageEl.textContent = "";
+        summarySection.classList.add("hidden");
+        summaryText.textContent = "";
+        itemListSection.classList.add("hidden");
+        itemsUl.innerHTML = "";
+        warningSection.classList.add("hidden");
+        warningMessage.textContent = "";
+        // Reset confirm button styling
+        confirmBtn.className = "px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition";
+      }, 200);
+      confirmBtn.removeEventListener("click", handleConfirm);
+      cancelBtn.removeEventListener("click", handleCancel);
+      document.removeEventListener("keydown", handleEscape);
+    };
+
+    confirmBtn.addEventListener("click", handleConfirm);
+    cancelBtn.addEventListener("click", handleCancel);
+    document.addEventListener("keydown", handleEscape);
+
+    // Focus the cancel button (safer default for destructive action)
+    setTimeout(() => cancelBtn.focus(), 250);
+  });
+};
+
+/**
  * ============================================================================
  * SELECTION TRACKING SYSTEM
  * ============================================================================
@@ -2727,15 +2905,9 @@ async function deleteSelected() {
   }
 
   const itemCount = window.selectedItems.length;
-  const itemList = window.selectedItems
-    .map((item) => `  • ${item.name}`)
-    .join("\n");
 
-  // Confirm deletion
-  const confirmed = await showConfirm(
-    `Are you sure you want to delete ${itemCount} item(s)?\n\n${itemList}\n\nThis action cannot be undone!`,
-    "Confirm Deletion"
-  );
+  // Confirm deletion with smart dialog (handles large selections elegantly)
+  const confirmed = await showDeleteConfirm(window.selectedItems);
 
   if (!confirmed) {
     return; // User cancelled
@@ -2754,62 +2926,55 @@ async function deleteSelected() {
 
     const csrfToken = tokenData.csrf_token;
 
-    // Delete each item
-    let successCount = 0;
-    let failedItems = [];
+    // Collect all paths
+    const paths = window.selectedItems.map((item) => item.path);
 
-    for (const item of window.selectedItems) {
-      try {
-        const params = new URLSearchParams();
-        params.append("path", item.path);
-        params.append("_csrf_token", csrfToken);
+    // Send batch delete request (single API call for all items!)
+    const params = new URLSearchParams();
+    params.append("paths", JSON.stringify(paths));
+    params.append("_csrf_token", csrfToken);
 
-        const response = await fetch("/api/delete", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: params.toString(),
-        });
+    const response = await fetch("/api/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
 
-        const data = await response.json();
+    const data = await response.json();
 
-        if (data.success) {
-          successCount++;
-        } else {
-          failedItems.push(`${item.name}: ${data.message || "Unknown error"}`);
-        }
-      } catch (error) {
-        failedItems.push(`${item.name}: ${error.message}`);
+    // Show results (API interceptor handles error responses automatically)
+    if (data.success) {
+      // All deleted successfully - show success toast
+      if (window.showToast) {
+        showToast.success('Files deleted', `${data.successCount} item(s) removed`, { duration: 3000 });
       }
-    }
-
-    // Show results
-    if (failedItems.length === 0) {
-      // All deleted successfully
-      showDialog(`Successfully deleted ${successCount} item(s)!`);
 
       // Refresh current folder (tree refreshes automatically via event!)
       handleUrlChange();
 
       // Clear selection
       clearSelection();
-    } else if (successCount > 0) {
-      // Some succeeded, some failed
-      showDialog(
-        `Deleted ${successCount} item(s).\n\nFailed to delete ${
-          failedItems.length
-        } item(s):\n${failedItems.join("\n")}`
-      );
+    } else if (data.successCount > 0) {
+      // Some succeeded, some failed - show warning toast
+      if (window.showToast) {
+        showToast.warning(
+          `Partial deletion`,
+          `${data.successCount} deleted, ${data.failedCount} failed`,
+          { duration: 5000 }
+        );
+      }
 
       // Refresh current folder (tree refreshes automatically via event!)
       handleUrlChange();
-    } else {
-      // All failed
-      showDialog(`Failed to delete items:\n\n${failedItems.join("\n")}`);
+      clearSelection();
     }
+    // Note: If all failed (data.success === false), the API interceptor
+    // will automatically show an error toast with the error message
   } catch (error) {
-    showDialog("Failed to delete: " + error.message);
+    // Network errors are handled by API interceptor
+    console.error('Delete operation error:', error);
   }
 }
 

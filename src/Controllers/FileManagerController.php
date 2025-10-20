@@ -749,67 +749,60 @@ class FileManagerController
         }
 
         try {
+            // Check if paths is an array (batch delete) or single path
+            $paths = $this->request->post('paths');
             $path = $this->request->post('path');
 
-            // Validate path
-            if (empty($path)) {
-                $this->response->json(['success' => false, 'message' => 'Path is required']);
-                return;
-            }
+            // Collect paths (support both batch and single delete)
+            $pathsToDelete = [];
+            if (!empty($paths)) {
+                // Batch delete mode - paths should be JSON encoded array
+                if (is_string($paths)) {
+                    $paths = json_decode($paths, true);
+                }
 
-            // Sanitize path
-            $security = new \WebFTP\Core\SecurityManager($this->config);
-            $sanitizedPath = $security->sanitizePath($path);
-
-            if ($sanitizedPath === null) {
-                $this->response->json(['success' => false, 'message' => 'Invalid path']);
-                return;
-            }
-
-            // Check if SSH is enabled - use SSH, otherwise use FTP
-            if ($this->config['ssh']['enabled']) {
-                // Use SSH for delete operation
-                $result = $this->withSshConnection(function($sshOperations) use ($sanitizedPath) {
-                    return $sshOperations->delete($sanitizedPath);
-                });
+                if (!is_array($paths) || empty($paths)) {
+                    $this->response->json(['success' => false, 'message' => 'Invalid paths array']);
+                    return;
+                }
+                $pathsToDelete = $paths;
+            } elseif (!empty($path)) {
+                // Single delete mode (backward compatibility)
+                $pathsToDelete = [$path];
             } else {
-                // Use FTP for delete operation
-                $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
-                    // Check if it's a directory
-                    $isDir = $ftpOperations->isDirectory($sanitizedPath);
-
-                    if ($isDir) {
-                        // Delete directory recursively
-                        $deleteResult = $ftpOperations->deleteFolder($sanitizedPath);
-                    } else {
-                        // Delete file
-                        $deleteResult = $ftpOperations->deleteFile($sanitizedPath);
-                    }
-
-                    if ($deleteResult['success']) {
-                        Logger::info('Item deleted successfully via FTP', [
-                            'user' => $this->session->get('ftp_username'),
-                            'path' => $sanitizedPath,
-                            'type' => $isDir ? 'directory' : 'file'
-                        ]);
-                    }
-
-                    return $deleteResult;
-                });
+                $this->response->json(['success' => false, 'message' => 'Path or paths required']);
+                return;
             }
 
-            if ($result['success']) {
-                Logger::info('Item deleted successfully', [
-                    'user' => $this->session->get('ftp_username'),
-                    'path' => $sanitizedPath,
-                    'method' => $this->config['ssh']['enabled'] ? 'SSH' : 'FTP'
-                ]);
+            // Sanitize all paths
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedPaths = [];
+            foreach ($pathsToDelete as $p) {
+                $sanitized = $security->sanitizePath($p);
+                if ($sanitized === null) {
+                    $this->response->json(['success' => false, 'message' => 'Invalid path: ' . $p]);
+                    return;
+                }
+                $sanitizedPaths[] = $sanitized;
             }
+
+            // Perform delete using unified delete() method
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPaths) {
+                return $ftpOperations->delete($sanitizedPaths);
+            });
+
+            Logger::info('Delete completed', [
+                'user' => $this->session->get('ftp_username'),
+                'count' => count($sanitizedPaths),
+                'success' => $result['successCount'],
+                'failed' => $result['failedCount']
+            ]);
 
             $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::error('Delete error', [
+                'paths' => $paths ?? null,
                 'path' => $path ?? 'unknown',
                 'message' => $e->getMessage()
             ]);
