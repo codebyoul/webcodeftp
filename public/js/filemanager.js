@@ -973,6 +973,14 @@ document.addEventListener("DOMContentLoaded", function () {
       span.textContent = item.name;
       button.appendChild(span);
 
+      // Symlink indicator for folders
+      if (item.is_symlink) {
+        const symlinkIcon = document.createElement("i");
+        symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+        symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+        button.appendChild(symlinkIcon);
+      }
+
       // Container for children
       const childrenContainer = document.createElement("div");
       childrenContainer.dataset.childrenFor = item.path;
@@ -1018,6 +1026,14 @@ document.addEventListener("DOMContentLoaded", function () {
       span.textContent = item.name;
       span.className = "text-sm";
       button.appendChild(span);
+
+      // Symlink indicator for files
+      if (item.is_symlink) {
+        const symlinkIcon = document.createElement("i");
+        symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+        symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+        button.appendChild(symlinkIcon);
+      }
 
       // Click handler for files - single click shows file info with preview/edit buttons
       button.addEventListener("click", function (e) {
@@ -1332,6 +1348,26 @@ document.addEventListener("DOMContentLoaded", function () {
                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3 break-all">${escapeHtml(
                       file.name
                     )}</h2>
+
+                    ${
+                      file.is_symlink && file.symlink_target
+                        ? `
+                    <!-- Symlink Warning -->
+                    <div class="mb-4 px-4 py-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                        <div class="flex items-center gap-2 text-yellow-800 dark:text-yellow-300">
+                            <i class="fas fa-link text-sm"></i>
+                            <span class="text-sm font-semibold">Symbolic Link</span>
+                        </div>
+                        <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-400 break-all">
+                            <i class="fas fa-arrow-right text-xs mr-2"></i>
+                            Points to: <code class="bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded">${escapeHtml(
+                              file.symlink_target
+                            )}</code>
+                        </div>
+                    </div>
+                    `
+                        : ""
+                    }
 
                     <!-- File Details -->
                     <div class="flex items-center justify-center gap-6 text-gray-600 dark:text-gray-400 mb-8">
@@ -1705,6 +1741,14 @@ document.addEventListener("DOMContentLoaded", function () {
       (type === "folder" ? " font-medium" : "");
     nameSpan.textContent = item.name;
     nameDiv.appendChild(nameSpan);
+
+    // Add symlink indicator
+    if (item.is_symlink) {
+      const symlinkIcon = document.createElement("i");
+      symlinkIcon.className = "fas fa-link text-xs text-yellow-500 dark:text-yellow-400 ml-2";
+      symlinkIcon.title = item.symlink_target ? `Symlink → ${item.symlink_target}` : "Symbolic Link";
+      nameDiv.appendChild(symlinkIcon);
+    }
 
     nameCell.appendChild(nameDiv);
     row.appendChild(nameCell);

@@ -94,7 +94,27 @@ class FtpOperationsService
             }
 
             $permissions = $parts[0];
-            $name = $parts[8];
+            $rawName = $parts[8];
+
+            // Check if it's a symbolic link
+            // Method 1: Permissions start with 'l' (lrwxrwxrwx)
+            // Method 2: Name format is "link_name -> target_path"
+            $isSymlink = false;
+            $symlinkTarget = null;
+            $name = $rawName;
+
+            // Check permissions field (most reliable for symlinks)
+            if (isset($permissions[0]) && $permissions[0] === 'l') {
+                $isSymlink = true;
+            }
+
+            // Parse symlink target from name (if present)
+            if (strpos($rawName, ' -> ') !== false) {
+                $symlinkParts = explode(' -> ', $rawName, 2);
+                $name = $symlinkParts[0];
+                $symlinkTarget = $symlinkParts[1] ?? null;
+                $isSymlink = true; // Redundant but explicit
+            }
 
             // Parse date/time
             $month = $parts[5] ?? '';
@@ -112,23 +132,37 @@ class FtpOperationsService
 
             // Check if it's a directory (first character is 'd')
             if ($permissions[0] === 'd') {
-                $folders[] = [
+                $folderData = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'directory',
                     'modified' => $modified,
                     'permissions' => $permissions,
-                    'children' => [] // Children loaded on demand
+                    'children' => [], // Children loaded on demand
+                    'is_symlink' => $isSymlink
                 ];
+
+                if ($isSymlink && $symlinkTarget) {
+                    $folderData['symlink_target'] = $symlinkTarget;
+                }
+
+                $folders[] = $folderData;
             } else {
-                $files[] = [
+                $fileData = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'file',
                     'size' => isset($parts[4]) ? (int) $parts[4] : 0,
                     'modified' => $modified,
-                    'permissions' => $permissions
+                    'permissions' => $permissions,
+                    'is_symlink' => $isSymlink
                 ];
+
+                if ($isSymlink && $symlinkTarget) {
+                    $fileData['symlink_target'] = $symlinkTarget;
+                }
+
+                $files[] = $fileData;
             }
         }
 
@@ -212,7 +246,27 @@ class FtpOperationsService
             }
 
             $permissions = $parts[0];
-            $name = $parts[8];
+            $rawName = $parts[8];
+
+            // Check if it's a symbolic link
+            // Method 1: Permissions start with 'l' (lrwxrwxrwx)
+            // Method 2: Name format is "link_name -> target_path"
+            $isSymlink = false;
+            $symlinkTarget = null;
+            $name = $rawName;
+
+            // Check permissions field (most reliable for symlinks)
+            if (isset($permissions[0]) && $permissions[0] === 'l') {
+                $isSymlink = true;
+            }
+
+            // Parse symlink target from name (if present)
+            if (strpos($rawName, ' -> ') !== false) {
+                $symlinkParts = explode(' -> ', $rawName, 2);
+                $name = $symlinkParts[0];
+                $symlinkTarget = $symlinkParts[1] ?? null;
+                $isSymlink = true; // Redundant but explicit
+            }
 
             // Parse date/time
             $month = $parts[5] ?? '';
@@ -230,26 +284,40 @@ class FtpOperationsService
 
             // Check if it's a directory
             if ($permissions[0] === 'd') {
-                $folders[] = [
+                $folderData = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'directory',
                     'modified' => $modified,
-                    'permissions' => $permissions
+                    'permissions' => $permissions,
+                    'is_symlink' => $isSymlink
                 ];
+
+                if ($isSymlink && $symlinkTarget) {
+                    $folderData['symlink_target'] = $symlinkTarget;
+                }
+
+                $folders[] = $folderData;
             } else {
                 // Get file extension
                 $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
 
-                $files[] = [
+                $fileData = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'file',
                     'size' => (int) $parts[4],
                     'modified' => $modified,
                     'permissions' => $permissions,
-                    'extension' => $extension
+                    'extension' => $extension,
+                    'is_symlink' => $isSymlink
                 ];
+
+                if ($isSymlink && $symlinkTarget) {
+                    $fileData['symlink_target'] = $symlinkTarget;
+                }
+
+                $files[] = $fileData;
             }
         }
 
