@@ -11,8 +11,14 @@ use WebFTP\Core\Logger;
 /**
  * FTP Connection Manager
  *
+ * @deprecated This class is deprecated. Use FtpConnectionService and FtpOperationsService instead.
+ * @see \WebFTP\Services\FtpConnectionService For connection management
+ * @see \WebFTP\Services\FtpOperationsService For FTP operations
+ *
  * Handles secure FTP connections with validation and error handling.
  * Supports both FTP and FTPS (FTP over SSL).
+ *
+ * This class is kept for backward compatibility but should not be used in new code.
  */
 class FtpConnection
 {

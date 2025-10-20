@@ -8,11 +8,14 @@ use WebFTP\Core\Request;
 use WebFTP\Core\Response;
 use WebFTP\Core\Logger;
 use WebFTP\Models\Session;
+use WebFTP\Services\FtpConnectionService;
+use WebFTP\Services\FtpOperationsService;
 
 /**
  * File Manager Controller
  *
  * Handles the main FTP file manager interface for authenticated users.
+ * Uses FtpConnectionService and FtpOperationsService for all FTP operations.
  */
 class FileManagerController
 {
@@ -152,53 +155,12 @@ class FileManagerController
             $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        // Get FTP credentials from session
-        $ftpHost = $this->session->get('ftp_host');
-        $ftpUsername = $this->session->get('ftp_username');
-        $ftpPassword = $this->session->get('ftp_password');
-
-        Logger::debug("getFolderTree API: Starting", ['ftpHost' => $ftpHost, 'ftpUsername' => $ftpUsername]);
-
-        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            Logger::debug("getFolderTree API: FTP credentials not found in session");
-            $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
-        }
+        // Get path from request (default to root)
+        $path = $this->request->get('path', '/');
 
         try {
-            // Initialize FTP connection
+            // Initialize services
             $security = new \WebFTP\Core\SecurityManager($this->config);
-            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
-
-            // Connect to FTP server
-            $ftpConfig = $this->config['ftp']['server'];
-            Logger::debug("getFolderTree API: Connecting to FTP", [
-                'host' => $ftpConfig['host'],
-                'port' => $ftpConfig['port'],
-                'use_ssl' => $ftpConfig['use_ssl']
-            ]);
-
-            $connectionResult = $ftp->connect(
-                $ftpConfig['host'],
-                $ftpConfig['port'],
-                $ftpUsername,
-                $ftpPassword,
-                $ftpConfig['use_ssl'],
-                $ftpConfig['passive_mode']
-            );
-
-            if (!$connectionResult['success']) {
-                Logger::debug("getFolderTree API: Connection failed", ['message' => $connectionResult['message']]);
-                $this->response->json([
-                    'success' => false,
-                    'message' => $connectionResult['message']
-                ]);
-            }
-
-            Logger::debug("getFolderTree API: Connected successfully");
-
-            // Get path from request (default to root)
-            $path = $this->request->get('path', '/');
-            Logger::debug("getFolderTree API: Requested path", ['path' => $path]);
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -210,23 +172,18 @@ class FileManagerController
                 ]);
             }
 
-            Logger::debug("getFolderTree API: Sanitized path", ['sanitizedPath' => $sanitizedPath]);
+            // Connect to FTP and get folder tree
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+                $tree = $ftpOperations->getFolderTree($sanitizedPath);
 
-            // Get folder tree
-            $tree = $ftp->getFolderTree($sanitizedPath);
+                return [
+                    'success' => true,
+                    'tree' => $tree,
+                    'path' => $sanitizedPath
+                ];
+            });
 
-            Logger::debug("getFolderTree API: Got tree", ['folder_count' => count($tree)]);
-
-            // Disconnect
-            $ftp->disconnect();
-
-            Logger::debug("getFolderTree API: Disconnected, returning response");
-
-            $this->response->json([
-                'success' => true,
-                'tree' => $tree,
-                'path' => $sanitizedPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::debug("getFolderTree API: Exception", [
@@ -251,40 +208,12 @@ class FileManagerController
             $this->response->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
 
-        // Get FTP credentials from session
-        $ftpHost = $this->session->get('ftp_host');
-        $ftpUsername = $this->session->get('ftp_username');
-        $ftpPassword = $this->session->get('ftp_password');
-
-        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
-        }
+        // Get path from request (default to root)
+        $path = $this->request->get('path', '/');
 
         try {
-            // Initialize FTP connection
+            // Initialize security manager
             $security = new \WebFTP\Core\SecurityManager($this->config);
-            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
-
-            // Connect to FTP server
-            $ftpConfig = $this->config['ftp']['server'];
-            $connectionResult = $ftp->connect(
-                $ftpConfig['host'],
-                $ftpConfig['port'],
-                $ftpUsername,
-                $ftpPassword,
-                $ftpConfig['use_ssl'],
-                $ftpConfig['passive_mode']
-            );
-
-            if (!$connectionResult['success']) {
-                $this->response->json([
-                    'success' => false,
-                    'message' => $connectionResult['message']
-                ]);
-            }
-
-            // Get path from request (default to root)
-            $path = $this->request->get('path', '/');
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -295,37 +224,38 @@ class FileManagerController
                 ]);
             }
 
-            // Get directory contents
-            $contents = $ftp->getDirectoryContents($sanitizedPath);
+            // Connect to FTP and get directory contents
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+                $contents = $ftpOperations->getDirectoryContents($sanitizedPath);
 
-            // Disconnect
-            $ftp->disconnect();
+                // Check if the folder exists
+                if (!isset($contents['success']) || !$contents['success']) {
+                    Logger::debug("getFolderContents: Folder does not exist", [
+                        'path' => $sanitizedPath,
+                        'contents' => $contents
+                    ]);
+                    return [
+                        'success' => false,
+                        'message' => 'Folder not found',
+                        'path' => $sanitizedPath
+                    ];
+                }
 
-            // Check if the folder exists (success flag from FTP model)
-            if (!isset($contents['success']) || !$contents['success']) {
-                Logger::debug("getFolderContents: Folder does not exist", [
+                Logger::debug("getFolderContents: Success", [
                     'path' => $sanitizedPath,
-                    'contents' => $contents
+                    'folders' => count($contents['folders']),
+                    'files' => count($contents['files'])
                 ]);
-                $this->response->json([
-                    'success' => false,
-                    'message' => 'Folder not found',
-                    'path' => $sanitizedPath
-                ]);
-            }
 
-            Logger::debug("getFolderContents: Success", [
-                'path' => $sanitizedPath,
-                'folders' => count($contents['folders']),
-                'files' => count($contents['files'])
-            ]);
+                return [
+                    'success' => true,
+                    'path' => $sanitizedPath,
+                    'folders' => $contents['folders'],
+                    'files' => $contents['files']
+                ];
+            });
 
-            $this->response->json([
-                'success' => true,
-                'path' => $sanitizedPath,
-                'folders' => $contents['folders'],
-                'files' => $contents['files']
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             $this->response->json([
@@ -352,37 +282,9 @@ class FileManagerController
             $this->response->json(['success' => false, 'message' => 'File path required']);
         }
 
-        // Get FTP credentials from session
-        $ftpHost = $this->session->get('ftp_host');
-        $ftpUsername = $this->session->get('ftp_username');
-        $ftpPassword = $this->session->get('ftp_password');
-
-        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
-        }
-
         try {
-            // Initialize FTP connection
+            // Initialize security manager
             $security = new \WebFTP\Core\SecurityManager($this->config);
-            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
-
-            // Connect to FTP server
-            $ftpConfig = $this->config['ftp']['server'];
-            $connectionResult = $ftp->connect(
-                $ftpConfig['host'],
-                $ftpConfig['port'],
-                $ftpUsername,
-                $ftpPassword,
-                $ftpConfig['use_ssl'],
-                $ftpConfig['passive_mode']
-            );
-
-            if (!$connectionResult['success']) {
-                $this->response->json([
-                    'success' => false,
-                    'message' => $connectionResult['message']
-                ]);
-            }
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -390,68 +292,53 @@ class FileManagerController
                 $this->response->json(['success' => false, 'message' => 'Invalid path']);
             }
 
-            // Get file size first
-            $fileSize = @ftp_size($ftp->getConnection(), $sanitizedPath);
-            if ($fileSize === -1) {
-                $ftp->disconnect();
-                $this->response->json(['success' => false, 'message' => 'File not found']);
-            }
+            // Connect to FTP and read file
+            $result = $this->withFtpConnection(function($ftpOperations, $ftpConnection) use ($sanitizedPath) {
+                // Get file size first
+                $fileSize = $ftpOperations->getFileSize($sanitizedPath);
+                if ($fileSize === -1) {
+                    return ['success' => false, 'message' => 'File not found'];
+                }
 
-            // Check file size limit
-            $maxSize = $this->config['file_editor']['max_file_size'];
-            if ($fileSize > $maxSize) {
-                $ftp->disconnect();
-                $this->response->json([
-                    'success' => false,
-                    'message' => 'File too large (' . round($fileSize / 1024 / 1024, 2) . ' MB). Maximum: ' . round($maxSize / 1024 / 1024) . ' MB'
-                ]);
-            }
+                // Check file size limit
+                $maxSize = $this->config['file_editor']['max_file_size'];
+                if ($fileSize > $maxSize) {
+                    return [
+                        'success' => false,
+                        'message' => 'File too large (' . round($fileSize / 1024 / 1024, 2) . ' MB). Maximum: ' . round($maxSize / 1024 / 1024) . ' MB'
+                    ];
+                }
 
-            // Create temporary file to store content
-            $tempFile = tmpfile();
-            if (!$tempFile) {
-                $ftp->disconnect();
-                $this->response->json(['success' => false, 'message' => 'Could not create temporary file']);
-            }
+                // Read file content
+                $content = $ftpOperations->readFile($sanitizedPath);
 
-            $tempPath = stream_get_meta_data($tempFile)['uri'];
+                if ($content === false) {
+                    return ['success' => false, 'message' => 'Could not read file'];
+                }
 
-            // Download file from FTP to temp
-            $downloadResult = @ftp_get($ftp->getConnection(), $tempPath, $sanitizedPath, FTP_BINARY);
+                // Get file extension and determine if it's editable
+                $extension = strtolower(pathinfo($sanitizedPath, PATHINFO_EXTENSION));
+                $isEditable = in_array($extension, $this->config['file_editor']['editable_extensions']);
+                $isPreviewable = in_array($extension, $this->config['file_editor']['preview_extensions']);
 
-            if (!$downloadResult) {
-                fclose($tempFile);
-                $ftp->disconnect();
-                $this->response->json(['success' => false, 'message' => 'Could not read file']);
-            }
+                // For image files, base64 encode the content
+                if ($isPreviewable) {
+                    $content = base64_encode($content);
+                }
 
-            // Read content from temp file
-            $content = file_get_contents($tempPath);
-            fclose($tempFile);
+                // Return file data
+                return [
+                    'success' => true,
+                    'content' => $content,
+                    'size' => $fileSize,
+                    'extension' => $extension,
+                    'isEditable' => $isEditable,
+                    'isPreviewable' => $isPreviewable,
+                    'path' => $sanitizedPath
+                ];
+            });
 
-            // Disconnect
-            $ftp->disconnect();
-
-            // Get file extension and determine if it's editable
-            $extension = strtolower(pathinfo($sanitizedPath, PATHINFO_EXTENSION));
-            $isEditable = in_array($extension, $this->config['file_editor']['editable_extensions']);
-            $isPreviewable = in_array($extension, $this->config['file_editor']['preview_extensions']);
-
-            // For image files, base64 encode the content
-            if ($isPreviewable) {
-                $content = base64_encode($content);
-            }
-
-            // Return file data
-            $this->response->json([
-                'success' => true,
-                'content' => $content,
-                'size' => $fileSize,
-                'extension' => $extension,
-                'isEditable' => $isEditable,
-                'isPreviewable' => $isPreviewable,
-                'path' => $sanitizedPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             $this->response->json([
@@ -482,11 +369,11 @@ class FileManagerController
         // Get file path and content from request
         $path = $this->request->post('path', '');
 
-        // Get content directly from POST without sanitization (we need raw content for files)
+        // Get content directly from POST without sanitization
         $content = $_POST['content'] ?? '';
 
-        // Still validate length for security
-        $maxSize = $this->config['file_editor']['max_file_size'] ?? 10485760; // 10MB default
+        // Validate length for security
+        $maxSize = $this->config['file_editor']['max_file_size'] ?? 10485760;
         if (strlen($content) > $maxSize) {
             $this->response->json([
                 'success' => false,
@@ -498,37 +385,9 @@ class FileManagerController
             $this->response->json(['success' => false, 'message' => 'File path required']);
         }
 
-        // Get FTP credentials from session
-        $ftpHost = $this->session->get('ftp_host');
-        $ftpUsername = $this->session->get('ftp_username');
-        $ftpPassword = $this->session->get('ftp_password');
-
-        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            $this->response->json(['success' => false, 'message' => 'FTP credentials not found']);
-        }
-
         try {
-            // Initialize FTP connection
+            // Initialize security manager
             $security = new \WebFTP\Core\SecurityManager($this->config);
-            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
-
-            // Connect to FTP server
-            $ftpConfig = $this->config['ftp']['server'];
-            $connectionResult = $ftp->connect(
-                $ftpConfig['host'],
-                $ftpConfig['port'],
-                $ftpUsername,
-                $ftpPassword,
-                $ftpConfig['use_ssl'],
-                $ftpConfig['passive_mode']
-            );
-
-            if (!$connectionResult['success']) {
-                $this->response->json([
-                    'success' => false,
-                    'message' => $connectionResult['message']
-                ]);
-            }
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -536,45 +395,28 @@ class FileManagerController
                 $this->response->json(['success' => false, 'message' => 'Invalid path']);
             }
 
-
             // Check if file extension is editable
             $extension = strtolower(pathinfo($sanitizedPath, PATHINFO_EXTENSION));
             if (!in_array($extension, $this->config['file_editor']['editable_extensions'])) {
-                $ftp->disconnect();
                 $this->response->json(['success' => false, 'message' => 'File type not editable']);
             }
 
-            // Create temporary file with new content
-            $tempFile = tmpfile();
-            if (!$tempFile) {
-                $ftp->disconnect();
-                $this->response->json(['success' => false, 'message' => 'Could not create temporary file']);
-            }
+            // Connect to FTP and write file
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath, $content) {
+                $writeResult = $ftpOperations->writeFile($sanitizedPath, $content);
 
-            $tempPath = stream_get_meta_data($tempFile)['uri'];
+                if (!$writeResult['success']) {
+                    return $writeResult;
+                }
 
-            // Write content to temp file exactly as received
-            file_put_contents($tempPath, $content);
+                return [
+                    'success' => true,
+                    'message' => 'File saved successfully',
+                    'path' => $sanitizedPath
+                ];
+            });
 
-            // Upload temp file to FTP in binary mode (no transformation)
-            $uploadResult = @ftp_put($ftp->getConnection(), $sanitizedPath, $tempPath, FTP_BINARY);
-
-            fclose($tempFile);
-
-            if (!$uploadResult) {
-                $ftp->disconnect();
-                $this->response->json(['success' => false, 'message' => 'Could not save file']);
-            }
-
-            // Disconnect
-            $ftp->disconnect();
-
-            // Return success
-            $this->response->json([
-                'success' => true,
-                'message' => 'File saved successfully',
-                'path' => $sanitizedPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             $this->response->json([
@@ -586,9 +428,6 @@ class FileManagerController
 
     /**
      * Get fresh CSRF token via AJAX
-     *
-     * Used when the editor needs a fresh token for saving
-     * after the page has been open for a while
      */
     public function getCsrfToken()
     {
@@ -631,38 +470,9 @@ class FileManagerController
             exit;
         }
 
-        // Get FTP credentials from session
-        $ftpHost = $this->session->get('ftp_host');
-        $ftpUsername = $this->session->get('ftp_username');
-        $ftpPassword = $this->session->get('ftp_password');
-
-        if (!$ftpHost || !$ftpUsername || !$ftpPassword) {
-            http_response_code(401);
-            echo 'FTP credentials not found';
-            exit;
-        }
-
         try {
-            // Initialize FTP connection
+            // Initialize security manager
             $security = new \WebFTP\Core\SecurityManager($this->config);
-            $ftp = new \WebFTP\Models\FtpConnection($this->config, $security);
-
-            // Connect to FTP server
-            $ftpConfig = $this->config['ftp']['server'];
-            $connectionResult = $ftp->connect(
-                $ftpConfig['host'],
-                $ftpConfig['port'],
-                $ftpUsername,
-                $ftpPassword,
-                $ftpConfig['use_ssl'],
-                $ftpConfig['passive_mode']
-            );
-
-            if (!$connectionResult['success']) {
-                http_response_code(500);
-                echo 'FTP connection failed';
-                exit;
-            }
 
             // Sanitize path
             $sanitizedPath = $security->sanitizePath($path);
@@ -672,13 +482,19 @@ class FileManagerController
                 exit;
             }
 
-            // Read file from FTP
-            $fileContent = $ftp->readFile($sanitizedPath);
+            // Connect to FTP and read image file
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+                // Read file from FTP
+                $fileContent = $ftpOperations->readFile($sanitizedPath);
 
-            // Disconnect
-            $ftp->disconnect();
+                if ($fileContent === false) {
+                    return ['success' => false];
+                }
 
-            if ($fileContent === false) {
+                return ['success' => true, 'content' => $fileContent];
+            });
+
+            if (!$result['success']) {
                 http_response_code(404);
                 echo 'File not found';
                 exit;
@@ -703,9 +519,9 @@ class FileManagerController
 
             // Set headers and output image
             header('Content-Type: ' . $mimeType);
-            header('Content-Length: ' . strlen($fileContent));
+            header('Content-Length: ' . strlen($result['content']));
             header('Cache-Control: public, max-age=3600');
-            echo $fileContent;
+            echo $result['content'];
             exit;
 
         } catch (\Exception $e) {
@@ -751,7 +567,7 @@ class FileManagerController
             return;
         }
 
-        // Sanitize filename - remove any path traversal attempts
+        // Sanitize filename
         $filename = basename($filename);
         if (empty($filename) || $filename === '.' || $filename === '..') {
             $this->response->json(['success' => false, 'message' => 'Invalid filename']);
@@ -762,60 +578,16 @@ class FileManagerController
         $fullPath = rtrim($path, '/') . '/' . $filename;
 
         try {
-            // Get FTP connection details from session
-            $ftpHost = $this->config['ftp']['server']['host'];
-            $ftpPort = $this->config['ftp']['server']['port'];
-            $ftpUser = $this->session->get('ftp_username');
-            $ftpPass = $this->session->get('ftp_password');
-            $useSsl = $this->config['ftp']['server']['use_ssl'];
-            $timeout = $this->config['ftp']['timeout'];
+            // Connect to FTP and create file
+            $result = $this->withFtpConnection(function($ftpOperations) use ($fullPath) {
+                return $ftpOperations->createFile($fullPath);
+            });
 
-            // Connect to FTP
-            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
-
-            if (!$conn) {
-                throw new \Exception('Could not connect to FTP server');
+            if ($result['success']) {
+                $result['path'] = $fullPath;
             }
 
-            // Login
-            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
-                ftp_close($conn);
-                throw new \Exception('FTP login failed');
-            }
-
-            // Set passive mode
-            if ($this->config['ftp']['server']['passive_mode']) {
-                ftp_pasv($conn, true);
-            }
-
-            // Check if file already exists
-            $size = @ftp_size($conn, $fullPath);
-            if ($size >= 0) {
-                ftp_close($conn);
-                $this->response->json(['success' => false, 'message' => 'File already exists']);
-                return;
-            }
-
-            // Create empty file by uploading empty content
-            $tempFile = tmpfile();
-            $tempFilePath = stream_get_meta_data($tempFile)['uri'];
-
-            if (!@ftp_fput($conn, $fullPath, $tempFile, FTP_BINARY)) {
-                fclose($tempFile);
-                ftp_close($conn);
-                throw new \Exception('Failed to create file on FTP server');
-            }
-
-            fclose($tempFile);
-            ftp_close($conn);
-
-            Logger::ftp('create_file', ['path' => $fullPath], true);
-
-            $this->response->json([
-                'success' => true,
-                'message' => 'File created successfully',
-                'path' => $fullPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::error('Create file error', [
@@ -855,7 +627,7 @@ class FileManagerController
             return;
         }
 
-        // Sanitize foldername - remove any path traversal attempts
+        // Sanitize foldername
         $foldername = basename($foldername);
         if (empty($foldername) || $foldername === '.' || $foldername === '..') {
             $this->response->json(['success' => false, 'message' => 'Invalid folder name']);
@@ -866,47 +638,16 @@ class FileManagerController
         $fullPath = rtrim($path, '/') . '/' . $foldername;
 
         try {
-            // Get FTP connection details from session
-            $ftpHost = $this->config['ftp']['server']['host'];
-            $ftpPort = $this->config['ftp']['server']['port'];
-            $ftpUser = $this->session->get('ftp_username');
-            $ftpPass = $this->session->get('ftp_password');
-            $useSsl = $this->config['ftp']['server']['use_ssl'];
-            $timeout = $this->config['ftp']['timeout'];
+            // Connect to FTP and create folder
+            $result = $this->withFtpConnection(function($ftpOperations) use ($fullPath) {
+                return $ftpOperations->createFolder($fullPath);
+            });
 
-            // Connect to FTP
-            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
-
-            if (!$conn) {
-                throw new \Exception('Could not connect to FTP server');
+            if ($result['success']) {
+                $result['path'] = $fullPath;
             }
 
-            // Login
-            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
-                ftp_close($conn);
-                throw new \Exception('FTP login failed');
-            }
-
-            // Set passive mode
-            if ($this->config['ftp']['server']['passive_mode']) {
-                ftp_pasv($conn, true);
-            }
-
-            // Create folder
-            if (!@ftp_mkdir($conn, $fullPath)) {
-                ftp_close($conn);
-                throw new \Exception('Failed to create folder on FTP server (may already exist)');
-            }
-
-            ftp_close($conn);
-
-            Logger::ftp('create_folder', ['path' => $fullPath], true);
-
-            $this->response->json([
-                'success' => true,
-                'message' => 'Folder created successfully',
-                'path' => $fullPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::error('Create folder error', [
@@ -946,72 +687,32 @@ class FileManagerController
             return;
         }
 
-        // Sanitize new name - remove any path traversal attempts
+        // Sanitize new name
         $newName = basename($newName);
         if (empty($newName) || $newName === '.' || $newName === '..') {
             $this->response->json(['success' => false, 'message' => 'Invalid name']);
             return;
         }
 
-        // Build new path (same directory, different name)
+        // Build new path
         $parentPath = dirname($oldPath);
         $newPath = ($parentPath === '/' || $parentPath === '.')
             ? '/' . $newName
             : $parentPath . '/' . $newName;
 
         try {
-            // Get FTP connection details from session
-            $ftpHost = $this->config['ftp']['server']['host'];
-            $ftpPort = $this->config['ftp']['server']['port'];
-            $ftpUser = $this->session->get('ftp_username');
-            $ftpPass = $this->session->get('ftp_password');
-            $useSsl = $this->config['ftp']['server']['use_ssl'];
-            $timeout = $this->config['ftp']['timeout'];
+            // Connect to FTP and rename
+            $result = $this->withFtpConnection(function($ftpOperations) use ($oldPath, $newPath) {
+                return $ftpOperations->rename($oldPath, $newPath);
+            });
 
-            // Connect to FTP
-            $conn = $useSsl ? @ftp_ssl_connect($ftpHost, $ftpPort, $timeout) : @ftp_connect($ftpHost, $ftpPort, $timeout);
-
-            if (!$conn) {
-                throw new \Exception('Could not connect to FTP server');
+            if ($result['success']) {
+                $result['old_path'] = $oldPath;
+                $result['new_path'] = $newPath;
+                $result['parent_path'] = $parentPath === '.' ? '/' : $parentPath;
             }
 
-            // Login
-            if (!@ftp_login($conn, $ftpUser, $ftpPass)) {
-                ftp_close($conn);
-                throw new \Exception('FTP login failed');
-            }
-
-            // Set passive mode
-            if ($this->config['ftp']['server']['passive_mode']) {
-                ftp_pasv($conn, true);
-            }
-
-            // Check if new name already exists
-            $size = @ftp_size($conn, $newPath);
-            $rawList = @ftp_rawlist($conn, $newPath);
-            if ($size >= 0 || ($rawList !== false && count($rawList) > 0)) {
-                ftp_close($conn);
-                $this->response->json(['success' => false, 'message' => 'A file or folder with this name already exists']);
-                return;
-            }
-
-            // Rename the file/folder
-            if (!@ftp_rename($conn, $oldPath, $newPath)) {
-                ftp_close($conn);
-                throw new \Exception('Failed to rename - please check permissions');
-            }
-
-            ftp_close($conn);
-
-            Logger::ftp('rename', ['from' => $oldPath, 'to' => $newPath], true);
-
-            $this->response->json([
-                'success' => true,
-                'message' => 'Renamed successfully',
-                'old_path' => $oldPath,
-                'new_path' => $newPath,
-                'parent_path' => $parentPath === '.' ? '/' : $parentPath
-            ]);
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::error('Rename error', [
@@ -1036,7 +737,9 @@ class FileManagerController
 
         // Validate CSRF token
         $csrfToken = $this->request->post('_csrf_token');
-        if (!$this->session->validateCsrfToken($csrfToken)) {
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
             Logger::warning('CSRF validation failed for delete', [
                 'user' => $this->session->get('ftp_username'),
                 'ip' => $this->request->ip()
@@ -1055,42 +758,39 @@ class FileManagerController
             }
 
             // Sanitize path
-            $path = $this->sanitizePath($path);
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedPath = $security->sanitizePath($path);
 
-            // Get FTP connection from session
-            $ftpConnection = $this->session->get('ftp_connection');
-            if (!$ftpConnection || !is_resource($ftpConnection)) {
-                $this->response->json(['success' => false, 'message' => 'FTP connection lost. Please login again.']);
+            if ($sanitizedPath === null) {
+                $this->response->json(['success' => false, 'message' => 'Invalid path']);
                 return;
             }
 
-            // Check if path exists and determine if it's a file or directory
-            $isDir = @ftp_nlist($ftpConnection, $path) !== false;
+            // Connect to FTP and delete
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+                // Check if it's a directory
+                $isDir = $ftpOperations->isDirectory($sanitizedPath);
 
-            if ($isDir) {
-                // It's a directory - delete recursively
-                $deleted = $this->deleteFtpDirectory($ftpConnection, $path);
-            } else {
-                // It's a file - delete directly
-                $deleted = @ftp_delete($ftpConnection, $path);
-            }
+                if ($isDir) {
+                    // Delete directory recursively
+                    $deleteResult = $ftpOperations->deleteFolder($sanitizedPath);
+                } else {
+                    // Delete file
+                    $deleteResult = $ftpOperations->deleteFile($sanitizedPath);
+                }
 
-            if ($deleted) {
-                Logger::info('Item deleted successfully', [
-                    'user' => $this->session->get('ftp_username'),
-                    'path' => $path,
-                    'type' => $isDir ? 'directory' : 'file'
-                ]);
-                $this->response->json([
-                    'success' => true,
-                    'message' => $isDir ? 'Folder deleted successfully' : 'File deleted successfully'
-                ]);
-            } else {
-                $this->response->json([
-                    'success' => false,
-                    'message' => 'Failed to delete item. It may not exist or you may not have permission.'
-                ]);
-            }
+                if ($deleteResult['success']) {
+                    Logger::info('Item deleted successfully', [
+                        'user' => $this->session->get('ftp_username'),
+                        'path' => $sanitizedPath,
+                        'type' => $isDir ? 'directory' : 'file'
+                    ]);
+                }
+
+                return $deleteResult;
+            });
+
+            $this->response->json($result);
 
         } catch (\Exception $e) {
             Logger::error('Delete error', [
@@ -1099,46 +799,6 @@ class FileManagerController
             ]);
             $this->response->json(['success' => false, 'message' => $e->getMessage()]);
         }
-    }
-
-    /**
-     * Recursively delete FTP directory
-     */
-    private function deleteFtpDirectory($ftpConnection, string $dir): bool
-    {
-        // Get directory contents
-        $files = @ftp_nlist($ftpConnection, $dir);
-
-        if ($files === false) {
-            return false;
-        }
-
-        // Filter out . and ..
-        $files = array_filter($files, function($file) use ($dir) {
-            $basename = basename($file);
-            return $basename !== '.' && $basename !== '..';
-        });
-
-        // Delete each item
-        foreach ($files as $file) {
-            // Check if it's a directory
-            $isDir = @ftp_nlist($ftpConnection, $file) !== false;
-
-            if ($isDir) {
-                // Recursively delete subdirectory
-                if (!$this->deleteFtpDirectory($ftpConnection, $file)) {
-                    return false;
-                }
-            } else {
-                // Delete file
-                if (!@ftp_delete($ftpConnection, $file)) {
-                    return false;
-                }
-            }
-        }
-
-        // Finally, remove the empty directory
-        return @ftp_rmdir($ftpConnection, $dir);
     }
 
     /**
@@ -1164,39 +824,32 @@ class FileManagerController
             }
 
             // Sanitize path
-            $path = $this->sanitizePath($path);
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedPath = $security->sanitizePath($path);
 
-            // Get FTP connection from session
-            $ftpConnection = $this->session->get('ftp_connection');
-            if (!$ftpConnection || !is_resource($ftpConnection)) {
-                http_response_code(500);
-                echo 'FTP connection lost. Please login again.';
-                return;
-            }
-
-            // Get file size
-            $size = @ftp_size($ftpConnection, $path);
-            if ($size === -1) {
-                http_response_code(404);
-                echo 'File not found';
+            if ($sanitizedPath === null) {
+                http_response_code(400);
+                echo 'Invalid path';
                 return;
             }
 
             // Create temporary file
             $tempFile = tempnam(sys_get_temp_dir(), 'webftp_');
 
-            // Download file from FTP to temp location
-            $downloaded = @ftp_get($ftpConnection, $tempFile, $path, FTP_BINARY);
+            // Connect to FTP and download file
+            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath, $tempFile) {
+                return $ftpOperations->downloadFile($sanitizedPath, $tempFile);
+            });
 
-            if (!$downloaded) {
+            if (!$result['success']) {
                 @unlink($tempFile);
                 http_response_code(500);
-                echo 'Failed to download file from FTP server';
+                echo $result['message'];
                 return;
             }
 
             // Get filename
-            $filename = basename($path);
+            $filename = basename($sanitizedPath);
 
             // Set headers for file download
             header('Content-Type: application/octet-stream');
@@ -1213,8 +866,8 @@ class FileManagerController
 
             Logger::info('File downloaded', [
                 'user' => $this->session->get('ftp_username'),
-                'path' => $path,
-                'size' => $size
+                'path' => $sanitizedPath,
+                'size' => $result['size']
             ]);
 
         } catch (\Exception $e) {
@@ -1227,4 +880,61 @@ class FileManagerController
         }
     }
 
+    /**
+     * Helper method to execute FTP operations with automatic connection management
+     *
+     * @param callable $callback Callback function that receives FtpOperationsService
+     * @return mixed Result from callback
+     * @throws \Exception If connection fails
+     */
+    private function withFtpConnection(callable $callback): mixed
+    {
+        // Get FTP credentials from session
+        $ftpUsername = $this->session->get('ftp_username');
+        $ftpPassword = $this->session->get('ftp_password');
+
+        if (!$ftpUsername || !$ftpPassword) {
+            return ['success' => false, 'message' => 'FTP credentials not found'];
+        }
+
+        // Initialize services
+        $security = new \WebFTP\Core\SecurityManager($this->config);
+        $ftpConnectionService = new FtpConnectionService($this->config, $security);
+        $ftpOperationsService = new FtpOperationsService($ftpConnectionService, $security, $this->config);
+
+        try {
+            // Connect to FTP server
+            $ftpConfig = $this->config['ftp']['server'];
+            $connectionResult = $ftpConnectionService->connect(
+                $ftpConfig['host'],
+                $ftpConfig['port'],
+                $ftpUsername,
+                $ftpPassword,
+                $ftpConfig['use_ssl'],
+                $ftpConfig['passive_mode']
+            );
+
+            if (!$connectionResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => $connectionResult['message']
+                ];
+            }
+
+            // Execute callback with FTP operations service
+            $result = $callback($ftpOperationsService, $ftpConnectionService);
+
+            // Disconnect
+            $ftpConnectionService->disconnect();
+
+            return $result;
+
+        } catch (\Exception $e) {
+            // Ensure disconnection on error
+            if (isset($ftpConnectionService)) {
+                $ftpConnectionService->disconnect();
+            }
+            throw $e;
+        }
+    }
 }

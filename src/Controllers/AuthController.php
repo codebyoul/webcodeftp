@@ -11,7 +11,7 @@ use WebFTP\Core\CsrfToken;
 use WebFTP\Core\Language;
 use WebFTP\Core\Logger;
 use WebFTP\Models\Session;
-use WebFTP\Models\FtpConnection;
+use WebFTP\Services\FtpConnectionService;
 
 /**
  * Authentication Controller
@@ -114,8 +114,8 @@ class AuthController
             $this->response->redirect('/');
         }
 
-        // Attempt FTP connection to configured server
-        $ftp = new FtpConnection($this->config, $this->security);
+        // Attempt FTP connection to configured server using new service
+        $ftp = new FtpConnectionService($this->config, $this->security);
         $result = $ftp->connect($host, $port, $username, $password, $useSsl, $passiveMode);
 
         if (!$result['success']) {
