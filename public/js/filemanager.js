@@ -655,6 +655,442 @@ function updateActionButtonStates() {
 
 /**
  * ============================================================================
+ * TOOLBAR MANAGEMENT SYSTEM (Event-Driven Architecture)
+ * Professional, generic, and extensible toolbar state management
+ * ============================================================================
+ */
+
+/**
+ * ToolbarManager - Centralized toolbar state management
+ * Handles visibility, enabled/disabled states, and context-aware configurations
+ */
+class ToolbarManager {
+  constructor() {
+    this.currentContext = null;
+    this.currentFileData = null;
+
+    // Define toolbar action configurations
+    this.actions = {
+      // Button ID -> Configuration
+      parentFolderBtn: { group: 'navigation', type: 'button' },
+      refreshBtn: { group: 'navigation', type: 'button' },
+      uploadBtn: { group: 'transfer', type: 'button' },
+      downloadBtn: { group: 'transfer', type: 'button' },
+      editBtn: { group: 'operations', type: 'button' },
+      renameBtn: { group: 'operations', type: 'button' },
+      deleteBtn: { group: 'operations', type: 'button' },
+      zipBtn: { group: 'ssh', type: 'button' },
+      unzipBtn: { group: 'ssh', type: 'button' },
+      moveBtn: { group: 'ssh', type: 'button' },
+    };
+
+    // Define toolbar groups
+    this.groups = {
+      navigation: { selector: '.toolbar-navigation' },
+      transfer: { selector: '.toolbar-transfer' },
+      create: { selector: '.toolbar-create' },
+      operations: { selector: '.toolbar-operations' },
+      ssh: { selector: '.toolbar-ssh' },
+    };
+
+    // Context rules - define what's visible/enabled for each context
+    this.contextRules = {
+      // FOLDER VIEW - Viewing folder contents (list view)
+      folder: {
+        groups: {
+          navigation: { visible: true },
+          transfer: { visible: true },
+          create: { visible: true },
+          operations: { visible: true },
+          ssh: { visible: true },
+        },
+        actions: {
+          uploadBtn: { visible: false }, // Not implemented yet
+          downloadBtn: { enabled: false, tooltip: 'Select item(s) to download' },
+          editBtn: { enabled: false, tooltip: 'Select a file to edit' },
+          renameBtn: { enabled: false, tooltip: 'Select an item to rename' },
+          deleteBtn: { enabled: false, tooltip: 'Select item(s) to delete' },
+        },
+      },
+
+      // FILE VIEW - Viewing single file info
+      file: {
+        groups: {
+          navigation: { visible: true },
+          transfer: { visible: true },
+          create: { visible: false }, // Hide "New File" and "New Folder"
+          operations: { visible: true },
+          ssh: { visible: false }, // Hide SSH operations
+        },
+        actions: {
+          uploadBtn: { visible: false },
+          downloadBtn: { enabled: true, tooltip: 'Download' },
+          editBtn: {
+            enabled: (fileData) => !this.isArchiveFile(fileData?.extension),
+            tooltip: (fileData) => this.isArchiveFile(fileData?.extension)
+              ? 'Archive files cannot be edited'
+              : 'Edit File'
+          },
+          renameBtn: { enabled: true, tooltip: 'Rename' },
+          deleteBtn: { enabled: true, tooltip: 'Delete' },
+        },
+        // Auto-select the file
+        autoSelect: true,
+      },
+
+      // IMAGE VIEW - Viewing image file (preview mode)
+      image: {
+        groups: {
+          navigation: { visible: true },
+          transfer: { visible: true },
+          create: { visible: false },
+          operations: { visible: true },
+          ssh: { visible: false },
+        },
+        actions: {
+          uploadBtn: { visible: false },
+          downloadBtn: { enabled: true, tooltip: 'Download Image' },
+          editBtn: { enabled: false, tooltip: 'Images cannot be edited in text editor' },
+          renameBtn: { enabled: true, tooltip: 'Rename' },
+          deleteBtn: { enabled: true, tooltip: 'Delete' },
+        },
+        autoSelect: true,
+      },
+
+      // ARCHIVE VIEW - Viewing archive file (zip, tar, etc.)
+      archive: {
+        groups: {
+          navigation: { visible: true },
+          transfer: { visible: true },
+          create: { visible: false },
+          operations: { visible: true },
+          ssh: { visible: true }, // Show SSH for unzip
+        },
+        actions: {
+          uploadBtn: { visible: false },
+          downloadBtn: { enabled: true, tooltip: 'Download Archive' },
+          editBtn: { enabled: false, tooltip: 'Archive files cannot be edited' },
+          renameBtn: { enabled: true, tooltip: 'Rename' },
+          deleteBtn: { enabled: true, tooltip: 'Delete' },
+          unzipBtn: { enabled: true, tooltip: 'Extract Archive' },
+          zipBtn: { visible: false }, // Hide zip button for archives
+          moveBtn: { visible: false },
+        },
+        autoSelect: true,
+      },
+    };
+  }
+
+  /**
+   * Set toolbar context and apply rules
+   * @param {string} context - 'folder', 'file', 'image', 'archive'
+   * @param {object|null} fileData - File data object (required for file contexts)
+   */
+  setContext(context, fileData = null) {
+    this.currentContext = context;
+    this.currentFileData = fileData;
+
+    // Get context rules
+    const rules = this.contextRules[context];
+    if (!rules) {
+      console.warn(`[ToolbarManager] Unknown context: ${context}`);
+      return;
+    }
+
+    // Apply group visibility rules
+    this.applyGroupRules(rules.groups);
+
+    // Apply action rules
+    this.applyActionRules(rules.actions, fileData);
+
+    // Update separators
+    this.updateSeparators();
+
+    // Auto-select file if specified
+    if (rules.autoSelect && fileData) {
+      this.selectFile(fileData);
+    }
+
+    // Dispatch event for other components
+    this.dispatchContextChangeEvent(context, fileData);
+  }
+
+  /**
+   * Apply group visibility rules
+   */
+  applyGroupRules(groupRules) {
+    Object.entries(this.groups).forEach(([groupName, groupConfig]) => {
+      const element = document.querySelector(groupConfig.selector);
+      if (!element) return;
+
+      const rule = groupRules[groupName];
+      if (rule) {
+        this.setVisibility(element, rule.visible !== false);
+      }
+    });
+  }
+
+  /**
+   * Apply action button rules
+   */
+  applyActionRules(actionRules, fileData) {
+    Object.entries(this.actions).forEach(([actionId, actionConfig]) => {
+      const element = document.getElementById(actionId);
+      if (!element) return;
+
+      const rule = actionRules[actionId];
+      if (!rule) return;
+
+      // Handle visibility
+      if (rule.visible !== undefined) {
+        this.setVisibility(element, rule.visible);
+      }
+
+      // Handle enabled/disabled state
+      if (rule.enabled !== undefined) {
+        const enabled = typeof rule.enabled === 'function'
+          ? rule.enabled(fileData)
+          : rule.enabled;
+        this.setEnabled(element, enabled);
+      }
+
+      // Handle tooltip
+      if (rule.tooltip !== undefined) {
+        const tooltip = typeof rule.tooltip === 'function'
+          ? rule.tooltip(fileData)
+          : rule.tooltip;
+        element.title = tooltip;
+      }
+    });
+  }
+
+  /**
+   * Set element visibility
+   */
+  setVisibility(element, visible) {
+    if (visible) {
+      element.classList.remove('hidden');
+    } else {
+      element.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Set button enabled/disabled state
+   */
+  setEnabled(button, enabled) {
+    if (enabled) {
+      button.disabled = false;
+      button.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+      button.disabled = true;
+      button.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  }
+
+  /**
+   * Update separator visibility (hide if neighboring groups are hidden)
+   */
+  updateSeparators() {
+    const separators = document.querySelectorAll('.toolbar-separator');
+
+    separators.forEach((separator) => {
+      const prev = separator.previousElementSibling;
+      const next = separator.nextElementSibling;
+
+      const prevHidden = prev && (prev.classList.contains('hidden') || prev.offsetParent === null);
+      const nextHidden = next && (next.classList.contains('hidden') || next.offsetParent === null);
+
+      if (prevHidden || nextHidden) {
+        separator.classList.add('hidden');
+      } else {
+        separator.classList.remove('hidden');
+      }
+    });
+  }
+
+  /**
+   * Auto-select file for context
+   */
+  selectFile(fileData) {
+    // Clear previous selection
+    if (typeof clearSelection === 'function') {
+      clearSelection();
+    }
+
+    // Add file to selection
+    if (!window.selectedItems) {
+      window.selectedItems = [];
+    }
+    window.selectedItems = [fileData];
+
+    // Update selection count
+    if (typeof updateSelectionCount === 'function') {
+      updateSelectionCount();
+    }
+  }
+
+  /**
+   * Dispatch custom event for context change
+   */
+  dispatchContextChangeEvent(context, fileData) {
+    const event = new CustomEvent('toolbar:contextchange', {
+      detail: { context, fileData }
+    });
+    window.dispatchEvent(event);
+  }
+
+  /**
+   * Helper: Check if file is archive
+   */
+  isArchiveFile(extension) {
+    if (!extension) return false;
+    const archiveExtensions = ['zip', 'rar', 'tar', 'gz', 'bz2', '7z', 'tgz', 'xz', 'iso'];
+    return archiveExtensions.includes(extension.toLowerCase());
+  }
+
+  /**
+   * Helper: Check if file is image
+   */
+  isImageFile(extension) {
+    if (!extension) return false;
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'];
+    return imageExtensions.includes(extension.toLowerCase());
+  }
+
+  /**
+   * Detect context from file data
+   * @param {object} fileData - File data object
+   * @returns {string} - Context name: 'file', 'image', 'archive'
+   */
+  detectFileContext(fileData) {
+    if (!fileData) return 'folder';
+
+    const extension = fileData.extension;
+
+    if (this.isArchiveFile(extension)) {
+      return 'archive';
+    } else if (this.isImageFile(extension)) {
+      return 'image';
+    } else {
+      return 'file';
+    }
+  }
+
+  /**
+   * Add custom context rule (for future extensibility)
+   * @param {string} contextName - Name of the context
+   * @param {object} rules - Context rules object
+   */
+  addContextRule(contextName, rules) {
+    this.contextRules[contextName] = rules;
+  }
+}
+
+// Initialize global ToolbarManager instance
+window.toolbarManager = new ToolbarManager();
+
+/**
+ * ============================================================================
+ * EXTENSIBILITY GUIDE - Adding New File Type Contexts
+ * ============================================================================
+ *
+ * To add support for a new file type with custom toolbar behavior:
+ *
+ * EXAMPLE: Adding support for PDF files
+ *
+ * 1. Add detection logic (optional - if not using extension-based detection):
+ *
+ *    window.toolbarManager.isPdfFile = function(extension) {
+ *      return extension && extension.toLowerCase() === 'pdf';
+ *    };
+ *
+ * 2. Add custom context rule:
+ *
+ *    window.toolbarManager.addContextRule('pdf', {
+ *      groups: {
+ *        navigation: { visible: true },
+ *        transfer: { visible: true },      // Show download
+ *        create: { visible: false },       // Hide create buttons
+ *        operations: { visible: true },    // Show operations
+ *        ssh: { visible: false },          // Hide SSH operations
+ *      },
+ *      actions: {
+ *        uploadBtn: { visible: false },
+ *        downloadBtn: { enabled: true, tooltip: 'Download PDF' },
+ *        editBtn: { enabled: false, tooltip: 'PDFs cannot be edited' },
+ *        renameBtn: { enabled: true, tooltip: 'Rename' },
+ *        deleteBtn: { enabled: true, tooltip: 'Delete' },
+ *      },
+ *      autoSelect: true,  // Auto-select the file when viewing
+ *    });
+ *
+ * 3. Update detectFileContext() to recognize the new type:
+ *
+ *    const originalDetect = window.toolbarManager.detectFileContext.bind(window.toolbarManager);
+ *    window.toolbarManager.detectFileContext = function(fileData) {
+ *      if (!fileData) return 'folder';
+ *
+ *      const extension = fileData.extension;
+ *
+ *      // Check for PDF first
+ *      if (this.isPdfFile(extension)) {
+ *        return 'pdf';
+ *      }
+ *
+ *      // Fall back to default detection
+ *      return originalDetect(fileData);
+ *    };
+ *
+ * 4. Toolbar will automatically update when viewing PDF files!
+ *
+ * ============================================================================
+ * ADVANCED: Dynamic Button States
+ * ============================================================================
+ *
+ * You can use functions for dynamic enabled/disabled states and tooltips:
+ *
+ * EXAMPLE: Enable edit only for small files
+ *
+ *    window.toolbarManager.addContextRule('largefile', {
+ *      groups: { ... },
+ *      actions: {
+ *        editBtn: {
+ *          enabled: (fileData) => {
+ *            const maxSize = 5 * 1024 * 1024; // 5MB
+ *            return fileData.size < maxSize;
+ *          },
+ *          tooltip: (fileData) => {
+ *            const maxSize = 5 * 1024 * 1024;
+ *            return fileData.size < maxSize
+ *              ? 'Edit File'
+ *              : 'File too large to edit (>5MB)';
+ *          }
+ *        },
+ *      },
+ *    });
+ *
+ * ============================================================================
+ * EVENT SYSTEM - Listen to Context Changes
+ * ============================================================================
+ *
+ * Listen to toolbar context changes in your own code:
+ *
+ *    window.addEventListener('toolbar:contextchange', (event) => {
+ *      const { context, fileData } = event.detail;
+ *      console.log(`Toolbar context changed to: ${context}`, fileData);
+ *
+ *      // Perform custom actions based on context
+ *      if (context === 'image') {
+ *        // Show image-specific UI elements
+ *      }
+ *    });
+ *
+ * ============================================================================
+ */
+
+/**
+ * ============================================================================
  * URL-BASED NAVIGATION SYSTEM
  * The URL is the SINGLE SOURCE OF TRUTH
  * ============================================================================
@@ -726,6 +1162,7 @@ function handleUrlChange(event) {
     // If we're opening editor, we don't need to load the folder list
     if (action === "edit") {
       // Just open the editor directly - no need to load folder contents
+      // Editor has its own toolbar (editorToolbar), so we don't set context here
       openIntegratedEditor(path);
     } else if (action === "preview") {
       // Show image preview - need file data
@@ -751,13 +1188,18 @@ function handleUrlChange(event) {
           return;
         }
 
+        // Set toolbar context for image preview
+        if (window.toolbarManager) {
+          window.toolbarManager.setContext('image', fileData);
+        }
+
         // Always show preview for action=preview
         if (typeof window.displayImagePreview === "function") {
           window.displayImagePreview(fileData);
         }
       });
     } else {
-      // No action = check file type and show appropriate view
+      // No action = check file type and show appropriate view (FILE INFO)
       loadFolderContents(folderPath, (data) => {
         if (!data || !data.success) {
           const errorMessage = data?.message || "Folder not found";
@@ -780,6 +1222,12 @@ function handleUrlChange(event) {
           return;
         }
 
+        // Detect file context and set toolbar accordingly
+        if (window.toolbarManager) {
+          const context = window.toolbarManager.detectFileContext(fileData);
+          window.toolbarManager.setContext(context, fileData);
+        }
+
         // No action = always show file info (for both images and regular files)
         if (typeof window.displaySelectedFile === "function") {
           window.displaySelectedFile(fileData);
@@ -787,7 +1235,11 @@ function handleUrlChange(event) {
       });
     }
   } else {
-    // It's a FOLDER
+    // It's a FOLDER - Set toolbar to folder context
+    if (window.toolbarManager) {
+      window.toolbarManager.setContext('folder');
+    }
+
     loadFolderContents(path, (data) => {
       if (!data || !data.success) {
         const errorMessage = data?.message || "Folder not found";
@@ -1253,7 +1705,9 @@ document.addEventListener("DOMContentLoaded", function () {
       // Click handler for files - single click shows file info with preview/edit buttons
       button.addEventListener("click", function (e) {
         // Navigate to file WITHOUT action (will show file info only)
-        navigateTo(item.path);
+        // Use skipExpand=true because file is already visible in tree!
+        // This prevents unnecessary /api/folder-tree call to expand parent folders
+        navigateTo(item.path, null, true);
         e.stopPropagation();
       });
 
@@ -1380,7 +1834,18 @@ document.addEventListener("DOMContentLoaded", function () {
   // Automatically refreshes tree folders when their contents change
   // - Only refreshes expanded folders (no wasted API calls)
   // - Debounces rapid changes (300ms)
-  // - Works for all operations automatically (create, rename, delete, etc.)
+  // - Works for operations that MODIFY folder contents (create, delete, rename, move, etc.)
+
+  /**
+   * Notify that folder contents have changed (dispatch event for tree refresh)
+   * Should ONLY be called after operations that MODIFY folder contents
+   * @param {string} path - Folder path that was modified
+   */
+  function notifyFolderContentsChanged(path) {
+    window.dispatchEvent(new CustomEvent("foldercontentsloaded", {
+      detail: { path: path }
+    }));
+  }
 
   let treeRefreshTimeout = null;
   const TREE_REFRESH_DEBOUNCE = 300; // 300ms debounce
@@ -1530,10 +1995,10 @@ document.addEventListener("DOMContentLoaded", function () {
           // Show list view
           listView.classList.remove("hidden");
 
-          // Dispatch custom event to notify tree that folder contents loaded (smart tree refresh!)
-          window.dispatchEvent(new CustomEvent("foldercontentsloaded", {
-            detail: { path: path, data: data }
-          }));
+          // DO NOT auto-dispatch "foldercontentsloaded" event here!
+          // That event should only be dispatched by operations that MODIFY folder contents
+          // (create, delete, rename, move, upload, etc.)
+          // Viewing/navigation operations should NOT trigger tree refresh to avoid unnecessary API calls
 
           // Call the callback when content is loaded
           if (onComplete) {
@@ -2191,10 +2656,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 );
               });
             }
-          } else {
           }
         }
-      } else {
       }
     }
 
@@ -2625,8 +3088,11 @@ async function createNewFile() {
     const data = await response.json();
 
     if (data.success) {
-      // Refresh current folder view (tree refreshes automatically via event!)
+      // Refresh current folder view
       handleUrlChange();
+
+      // Notify tree that folder contents changed (so tree refreshes to show new file)
+      notifyFolderContentsChanged(currentPath);
 
       // Optionally open the file for editing
       const shouldEdit = await showConfirm(
@@ -2700,8 +3166,10 @@ async function createNewFolder() {
     const data = await response.json();
 
     if (data.success) {
-      // Refresh current folder view (tree refreshes automatically via event!)
+      // Refresh current folder view
       handleUrlChange();
+      // Notify tree to refresh (manual dispatch for modification operations only)
+      notifyFolderContentsChanged(currentPath);
 
       // Optionally navigate to the new folder
       const shouldOpen = await showConfirm(
@@ -2874,8 +3342,10 @@ async function renameSelected() {
     const data = await response.json();
 
     if (data.success) {
-      // Navigate to parent folder (tree refreshes automatically via event!)
+      // Navigate to parent folder
       navigateTo(data.parent_path);
+      // Notify tree to refresh (manual dispatch for modification operations only)
+      notifyFolderContentsChanged(data.parent_path);
 
       showDialog(
         `${itemType === "file" ? "File" : "Folder"} renamed successfully!`
@@ -2951,8 +3421,14 @@ async function deleteSelected() {
         showToast.success('Files deleted', `${data.successCount} item(s) removed`, { duration: 3000 });
       }
 
-      // Refresh current folder (tree refreshes automatically via event!)
+      // Get current path for tree refresh
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentPath = urlParams.get("path") || "/";
+
+      // Refresh current folder
       handleUrlChange();
+      // Notify tree to refresh (manual dispatch for modification operations only)
+      notifyFolderContentsChanged(currentPath);
 
       // Clear selection
       clearSelection();
@@ -2966,8 +3442,14 @@ async function deleteSelected() {
         );
       }
 
-      // Refresh current folder (tree refreshes automatically via event!)
+      // Get current path for tree refresh
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentPath = urlParams.get("path") || "/";
+
+      // Refresh current folder
       handleUrlChange();
+      // Notify tree to refresh (manual dispatch for modification operations only)
+      notifyFolderContentsChanged(currentPath);
       clearSelection();
     }
     // Note: If all failed (data.success === false), the API interceptor
