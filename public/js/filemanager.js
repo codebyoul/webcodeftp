@@ -593,14 +593,19 @@ function handleUrlChange(event) {
 
 /**
  * Preview/Edit file - now just updates URL
+ * @param {string} path - File path
+ * @param {string} [extension] - Optional: file extension from backend API
  */
-function previewFile(path) {
+function previewFile(path, extension = null) {
   closeAllPreviews();
 
-  // Check if it's an image or code file
-  const filename = path.split("/").pop();
+  // Use extension from backend API if provided, otherwise extract from path
+  if (!extension) {
+    const filename = path.split("/").pop();
+    extension = filename.split(".").pop();
+  }
 
-  if (isImageFile(filename)) {
+  if (isImageFile(extension)) {
     // Navigate with preview action (will show image preview)
     navigateTo(path, "preview");
   } else {
@@ -762,6 +767,7 @@ function closeAllPreviews() {
 
 /**
  * Update unzip button state (enabled only if exactly 1 zip file is selected)
+ * Now uses the extension field from backend API
  */
 function updateUnzipButtonState() {
   const unzipBtn = document.getElementById("unzipBtn");
@@ -772,7 +778,8 @@ function updateUnzipButtonState() {
   // Enable if exactly 1 item selected and it's a zip format
   if (window.selectedItems && window.selectedItems.length === 1) {
     const selectedItem = window.selectedItems[0];
-    const extension = selectedItem.name.split(".").pop().toLowerCase();
+    // Use extension from backend API if available, otherwise fallback to parsing name
+    const extension = (selectedItem.extension || selectedItem.name.split(".").pop()).toLowerCase();
     const isZipFile = zipExtensions.includes(extension);
 
     if (isZipFile) {
@@ -1358,22 +1365,52 @@ document.addEventListener("DOMContentLoaded", function () {
                         }
                     </div>
 
-                    <!-- Edit/Preview Button (Small & Elegant) -->
-                    <div class="flex items-center justify-center">
-                        <button onclick="previewFile('${escapeHtml(
-                          file.path
-                        )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
-                            <i class="fas ${
-                              isImageFile(file.name)
-                                ? "fa-eye"
-                                : "fa-pen-to-square"
-                            } text-sm"></i>
-                            <span>${
-                              isImageFile(file.name)
-                                ? "Preview Image"
-                                : "Edit File"
-                            }</span>
-                        </button>
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-center gap-3">
+                        ${
+                          isArchiveFile(file.extension)
+                            ? `
+                            <!-- Download Button for Archives -->
+                            <a href="/api/download?path=${encodeURIComponent(
+                              file.path
+                            )}" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800 transition-all duration-200">
+                                <i class="fas fa-download text-sm"></i>
+                                <span>Download</span>
+                            </a>
+                            ${
+                              window.APP_CONFIG && window.APP_CONFIG.sshEnabled
+                                ? `
+                            <!-- Unzip Button (only if SSH enabled) -->
+                            <button onclick="unzipFile('${escapeHtml(
+                              file.path
+                            )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800 transition-all duration-200">
+                                <i class="fas fa-file-zipper text-sm"></i>
+                                <span>Unzip</span>
+                            </button>
+                            `
+                                : ""
+                            }
+                        `
+                            : `
+                            <!-- Edit/Preview Button for non-archives -->
+                            <button onclick="previewFile('${escapeHtml(
+                              file.path
+                            )}', '${escapeHtml(
+                              file.extension || ""
+                            )}')" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800 transition-all duration-200">
+                                <i class="fas ${
+                                  isImageFile(file.extension)
+                                    ? "fa-eye"
+                                    : "fa-pen-to-square"
+                                } text-sm"></i>
+                                <span>${
+                                  isImageFile(file.extension)
+                                    ? "Preview Image"
+                                    : "Edit File"
+                                }</span>
+                            </button>
+                        `
+                        }
                     </div>
 
                     <!-- File Path -->
@@ -1888,8 +1925,11 @@ let currentImageZoom = 1.0;
 
 /**
  * Check if file is an image based on extension
+ * Now uses the extension from backend API response
+ * @param {string} extension - File extension from backend (e.g., 'png', 'jpg')
+ * @returns {boolean}
  */
-function isImageFile(filename) {
+function isImageFile(extension) {
   const imageExtensions = [
     "png",
     "jpg",
@@ -1902,8 +1942,29 @@ function isImageFile(filename) {
     "tiff",
     "tif",
   ];
-  const extension = filename.split(".").pop().toLowerCase();
-  return imageExtensions.includes(extension);
+  if (!extension) return false;
+  return imageExtensions.includes(extension.toLowerCase());
+}
+
+/**
+ * Check if file is an archive/compressed file
+ * @param {string} extension - File extension from backend (e.g., 'zip', 'gz')
+ * @returns {boolean}
+ */
+function isArchiveFile(extension) {
+  const archiveExtensions = [
+    "zip",
+    "rar",
+    "tar",
+    "gz",
+    "bz2",
+    "7z",
+    "tgz",
+    "xz",
+    "iso",
+  ];
+  if (!extension) return false;
+  return archiveExtensions.includes(extension.toLowerCase());
 }
 
 /**
@@ -2639,7 +2700,7 @@ async function downloadSelected() {
     try {
       // Create a temporary link and trigger download
       const link = document.createElement("a");
-      link.href = `/api/file/download?path=${encodeURIComponent(file.path)}`;
+      link.href = `/api/download?path=${encodeURIComponent(file.path)}`;
       link.download = file.name;
       link.style.display = "none";
       document.body.appendChild(link);
@@ -2660,5 +2721,77 @@ async function downloadSelected() {
     showDialog(`Downloading: ${files[0].name}`);
   } else {
     showDialog(`Downloading ${files.length} file(s)...`);
+  }
+}
+
+/**
+ * Unzip/Extract archive file via SSH
+ * @param {string} path - Full path to the archive file
+ */
+async function unzipFile(path) {
+  if (!path) {
+    showDialog("Please select an archive file to extract");
+    return;
+  }
+
+  // Get filename for confirmation
+  const filename = path.split("/").pop();
+
+  // Confirm extraction
+  const confirmed = await showConfirm(
+    `Extract archive "${filename}"?\n\nFiles will be extracted to the same directory.`,
+    "Extract Archive"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    // Get CSRF token
+    const tokenResponse = await fetch("/api/csrf-token", {
+      credentials: "same-origin",
+    });
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenData.success) {
+      throw new Error(tokenData.message || "Failed to get security token");
+    }
+
+    const csrfToken = tokenData.csrf_token;
+
+    // Send unzip request
+    const params = new URLSearchParams();
+    params.append("path", path);
+    params.append("_csrf_token", csrfToken);
+
+    const response = await fetch("/api/unzip", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      credentials: "same-origin",
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showDialog("Archive extracted successfully!");
+
+      // Reload tree and refresh current folder
+      if (typeof loadFolderTree === "function") {
+        loadFolderTree("/", () => {
+          handleUrlChange();
+        });
+      } else {
+        handleUrlChange();
+      }
+    } else {
+      throw new Error(data.message || "Failed to extract archive");
+    }
+  } catch (error) {
+    console.error("Unzip error:", error);
+    showDialog(`Failed to extract archive: ${error.message}`);
   }
 }

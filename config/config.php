@@ -145,18 +145,23 @@ return [
         // Enable/Disable SSH features (zip, unzip, move operations)
         'enabled' => false, // Set to true to enable zip/unzip/move features
 
-        // SSH Server Configuration (same server as FTP, but SSH protocol)
+        // SSH Server Configuration
         'server' => [
-            'host' => '192.168.187.139',  // SSH server hostname/IP (usually same as FTP)
+            'host' => '192.168.187.139',  // SSH server hostname/IP
             'port' => 22,                    // SSH port (default: 22)
+        ],
+
+        // SSH Authentication
+        // IMPORTANT: These credentials are SEPARATE from FTP credentials
+        // Provide your SSH username and password here
+        'credentials' => [
+            'username' => '',                // SSH username (different from FTP)
+            'password' => '',                // SSH password (different from FTP)
         ],
 
         // SSH Connection Settings
         'timeout' => 30,                     // Connection timeout in seconds
         'operation_timeout' => 300,          // 5 minutes for zip/unzip operations
-
-        // SSH Authentication (uses same credentials as FTP from session)
-        // No additional credentials needed - uses FTP username/password from login
     ],
 
     // ============================================================================

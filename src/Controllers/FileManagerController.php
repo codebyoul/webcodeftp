@@ -766,29 +766,45 @@ class FileManagerController
                 return;
             }
 
-            // Connect to FTP and delete
-            $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
-                // Check if it's a directory
-                $isDir = $ftpOperations->isDirectory($sanitizedPath);
+            // Check if SSH is enabled - use SSH, otherwise use FTP
+            if ($this->config['ssh']['enabled']) {
+                // Use SSH for delete operation
+                $result = $this->withSshConnection(function($sshOperations) use ($sanitizedPath) {
+                    return $sshOperations->delete($sanitizedPath);
+                });
+            } else {
+                // Use FTP for delete operation
+                $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedPath) {
+                    // Check if it's a directory
+                    $isDir = $ftpOperations->isDirectory($sanitizedPath);
 
-                if ($isDir) {
-                    // Delete directory recursively
-                    $deleteResult = $ftpOperations->deleteFolder($sanitizedPath);
-                } else {
-                    // Delete file
-                    $deleteResult = $ftpOperations->deleteFile($sanitizedPath);
-                }
+                    if ($isDir) {
+                        // Delete directory recursively
+                        $deleteResult = $ftpOperations->deleteFolder($sanitizedPath);
+                    } else {
+                        // Delete file
+                        $deleteResult = $ftpOperations->deleteFile($sanitizedPath);
+                    }
 
-                if ($deleteResult['success']) {
-                    Logger::info('Item deleted successfully', [
-                        'user' => $this->session->get('ftp_username'),
-                        'path' => $sanitizedPath,
-                        'type' => $isDir ? 'directory' : 'file'
-                    ]);
-                }
+                    if ($deleteResult['success']) {
+                        Logger::info('Item deleted successfully via FTP', [
+                            'user' => $this->session->get('ftp_username'),
+                            'path' => $sanitizedPath,
+                            'type' => $isDir ? 'directory' : 'file'
+                        ]);
+                    }
 
-                return $deleteResult;
-            });
+                    return $deleteResult;
+                });
+            }
+
+            if ($result['success']) {
+                Logger::info('Item deleted successfully', [
+                    'user' => $this->session->get('ftp_username'),
+                    'path' => $sanitizedPath,
+                    'method' => $this->config['ssh']['enabled'] ? 'SSH' : 'FTP'
+                ]);
+            }
 
             $this->response->json($result);
 
@@ -881,6 +897,233 @@ class FileManagerController
     }
 
     /**
+     * Unzip archive file via SSH
+     */
+    public function unzipFile(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Not authenticated']);
+            return;
+        }
+
+        // Check if SSH is enabled
+        if (!$this->config['ssh']['enabled']) {
+            $this->response->json(['success' => false, 'message' => 'SSH operations are not enabled']);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            Logger::warning('CSRF validation failed for unzip', [
+                'user' => $this->session->get('ftp_username'),
+                'ip' => $this->request->ip()
+            ]);
+            $this->response->json(['success' => false, 'message' => 'Invalid security token']);
+            return;
+        }
+
+        try {
+            $path = $this->request->post('path');
+
+            // Validate path
+            if (empty($path)) {
+                $this->response->json(['success' => false, 'message' => 'Path is required']);
+                return;
+            }
+
+            // Sanitize path
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedPath = $security->sanitizePath($path);
+
+            if ($sanitizedPath === null) {
+                $this->response->json(['success' => false, 'message' => 'Invalid path']);
+                return;
+            }
+
+            // Determine extraction directory (same directory as archive)
+            $destinationPath = dirname($sanitizedPath);
+
+            // Use SSH for unzip operation
+            $result = $this->withSshConnection(function($sshOperations) use ($sanitizedPath, $destinationPath) {
+                return $sshOperations->unzipFile($sanitizedPath, $destinationPath);
+            });
+
+            if ($result['success']) {
+                Logger::info('Archive extracted successfully', [
+                    'user' => $this->session->get('ftp_username'),
+                    'path' => $sanitizedPath
+                ]);
+            }
+
+            $this->response->json($result);
+
+        } catch (\Exception $e) {
+            Logger::error('Unzip error', [
+                'path' => $path ?? 'unknown',
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Compress files/folders into archive
+     */
+    public function zipFile(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Not authenticated']);
+            return;
+        }
+
+        // Check if SSH is enabled (zip requires SSH)
+        if (!$this->config['ssh']['enabled']) {
+            $this->response->json(['success' => false, 'message' => 'SSH operations are not enabled']);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            Logger::warning('CSRF validation failed for zip', [
+                'user' => $this->session->get('ftp_username'),
+                'ip' => $this->request->ip()
+            ]);
+            $this->response->json(['success' => false, 'message' => 'Invalid security token']);
+            return;
+        }
+
+        try {
+            $sourcePath = $this->request->post('source_path');
+            $archiveName = $this->request->post('archive_name');
+
+            // Validate paths
+            if (empty($sourcePath) || empty($archiveName)) {
+                $this->response->json(['success' => false, 'message' => 'Source path and archive name are required']);
+                return;
+            }
+
+            // Sanitize paths
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedSourcePath = $security->sanitizePath($sourcePath);
+            $sanitizedArchiveName = $security->sanitizePath($archiveName);
+
+            if ($sanitizedSourcePath === null || $sanitizedArchiveName === null) {
+                $this->response->json(['success' => false, 'message' => 'Invalid path']);
+                return;
+            }
+
+            // Use SSH for zip operation
+            $result = $this->withSshConnection(function($sshOperations) use ($sanitizedSourcePath, $sanitizedArchiveName) {
+                return $sshOperations->zipFile($sanitizedSourcePath, $sanitizedArchiveName);
+            });
+
+            if ($result['success']) {
+                Logger::info('Archive created successfully', [
+                    'user' => $this->session->get('ftp_username'),
+                    'source' => $sanitizedSourcePath,
+                    'archive' => $sanitizedArchiveName
+                ]);
+            }
+
+            $this->response->json($result);
+
+        } catch (\Exception $e) {
+            Logger::error('Zip error', [
+                'source' => $sourcePath ?? 'unknown',
+                'archive' => $archiveName ?? 'unknown',
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Move/rename file or folder
+     */
+    public function moveFile(): void
+    {
+        // Check authentication
+        if (!$this->session->isAuthenticated()) {
+            $this->response->json(['success' => false, 'message' => 'Not authenticated']);
+            return;
+        }
+
+        // Validate CSRF token
+        $csrfToken = $this->request->post('_csrf_token');
+        $csrf = new \WebFTP\Core\CsrfToken($this->config);
+
+        if (!$csrf->validate($csrfToken)) {
+            Logger::warning('CSRF validation failed for move', [
+                'user' => $this->session->get('ftp_username'),
+                'ip' => $this->request->ip()
+            ]);
+            $this->response->json(['success' => false, 'message' => 'Invalid security token']);
+            return;
+        }
+
+        try {
+            $sourcePath = $this->request->post('source_path');
+            $destinationPath = $this->request->post('destination_path');
+
+            // Validate paths
+            if (empty($sourcePath) || empty($destinationPath)) {
+                $this->response->json(['success' => false, 'message' => 'Source and destination paths are required']);
+                return;
+            }
+
+            // Sanitize paths
+            $security = new \WebFTP\Core\SecurityManager($this->config);
+            $sanitizedSourcePath = $security->sanitizePath($sourcePath);
+            $sanitizedDestinationPath = $security->sanitizePath($destinationPath);
+
+            if ($sanitizedSourcePath === null || $sanitizedDestinationPath === null) {
+                $this->response->json(['success' => false, 'message' => 'Invalid path']);
+                return;
+            }
+
+            // Check if SSH is enabled - use SSH, otherwise use FTP
+            if ($this->config['ssh']['enabled']) {
+                // Use SSH for move operation
+                $result = $this->withSshConnection(function($sshOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
+                    return $sshOperations->move($sanitizedSourcePath, $sanitizedDestinationPath);
+                });
+            } else {
+                // Use FTP for move operation (rename)
+                $result = $this->withFtpConnection(function($ftpOperations) use ($sanitizedSourcePath, $sanitizedDestinationPath) {
+                    return $ftpOperations->renameFile($sanitizedSourcePath, $sanitizedDestinationPath);
+                });
+            }
+
+            if ($result['success']) {
+                Logger::info('File/folder moved successfully', [
+                    'user' => $this->session->get('ftp_username'),
+                    'source' => $sanitizedSourcePath,
+                    'destination' => $sanitizedDestinationPath,
+                    'method' => $this->config['ssh']['enabled'] ? 'SSH' : 'FTP'
+                ]);
+            }
+
+            $this->response->json($result);
+
+        } catch (\Exception $e) {
+            Logger::error('Move error', [
+                'source' => $sourcePath ?? 'unknown',
+                'destination' => $destinationPath ?? 'unknown',
+                'message' => $e->getMessage()
+            ]);
+            $this->response->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Helper method to execute FTP operations with automatic connection management
      *
      * @param callable $callback Callback function that receives FtpOperationsService
@@ -933,6 +1176,66 @@ class FileManagerController
             // Ensure disconnection on error
             if (isset($ftpConnectionService)) {
                 $ftpConnectionService->disconnect();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Helper method to execute SSH operations with automatic connection management
+     *
+     * @param callable $callback Callback function that receives SshOperationsService
+     * @return mixed Result from callback
+     * @throws \Exception If connection fails
+     */
+    private function withSshConnection(callable $callback): mixed
+    {
+        // Get SSH credentials from config (separate from FTP credentials)
+        $sshCredentials = $this->config['ssh']['credentials'] ?? [];
+        $username = $sshCredentials['username'] ?? '';
+        $password = $sshCredentials['password'] ?? '';
+
+        if (empty($username) || empty($password)) {
+            return [
+                'success' => false,
+                'message' => 'SSH credentials not configured in config.php'
+            ];
+        }
+
+        // Initialize services
+        $security = new \WebFTP\Core\SecurityManager($this->config);
+        $sshConnectionService = new \WebFTP\Services\SshConnectionService($this->config, $security);
+        $sshOperationsService = new \WebFTP\Services\SshOperationsService($sshConnectionService, $security, $this->config);
+
+        try {
+            // Connect to SSH server
+            $sshConfig = $this->config['ssh']['server'];
+            $connectionResult = $sshConnectionService->connect(
+                $sshConfig['host'],
+                $sshConfig['port'],
+                $username,
+                $password
+            );
+
+            if (!$connectionResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => $connectionResult['message']
+                ];
+            }
+
+            // Execute callback with SSH operations service
+            $result = $callback($sshOperationsService, $sshConnectionService);
+
+            // Disconnect
+            $sshConnectionService->disconnect();
+
+            return $result;
+
+        } catch (\Exception $e) {
+            // Ensure disconnection on error
+            if (isset($sshConnectionService)) {
+                $sshConnectionService->disconnect();
             }
             throw $e;
         }

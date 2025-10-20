@@ -52,7 +52,8 @@
             ftpUsername: <?= json_encode($ftp_username ?? 'User') ?>,
             ftpHost: <?= json_encode($ftp_host ?? '') ?>,
             language: <?= json_encode($language ?? 'en') ?>,
-            theme: <?= json_encode($theme ?? 'dark') ?>
+            theme: <?= json_encode($theme ?? 'dark') ?>,
+            sshEnabled: <?= json_encode($ssh_enabled ?? false) ?>
         };
     </script>
 

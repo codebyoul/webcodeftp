@@ -193,6 +193,46 @@ $router->get('/api/csrf-token', function () use ($config, $request, $response, $
     }
 });
 
+$router->post('/api/file/create', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->createFile();
+});
+
+$router->post('/api/folder/create', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->createFolder();
+});
+
+$router->post('/api/rename', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->rename();
+});
+
+$router->post('/api/delete', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->delete();
+});
+
+$router->get('/api/download', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->downloadFile();
+});
+
+$router->post('/api/unzip', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->unzipFile();
+});
+
+$router->post('/api/zip', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->zipFile();
+});
+
+$router->post('/api/move', function () use ($config, $request, $response, $session) {
+    $controller = new FileManagerController($config, $request, $response, $session);
+    $controller->moveFile();
+});
+
 // Dispatch request
 try {
     $method = $request->method();

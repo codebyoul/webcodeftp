@@ -238,13 +238,17 @@ class FtpOperationsService
                     'permissions' => $permissions
                 ];
             } else {
+                // Get file extension
+                $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
                 $files[] = [
                     'name' => $name,
                     'path' => $fullPath,
                     'type' => 'file',
                     'size' => (int) $parts[4],
                     'modified' => $modified,
-                    'permissions' => $permissions
+                    'permissions' => $permissions,
+                    'extension' => $extension
                 ];
             }
         }
