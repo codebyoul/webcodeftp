@@ -196,29 +196,48 @@
 
                         <!-- Left: Action Icons -->
                         <div class="flex items-center gap-1">
+                            <!-- Navigation Group -->
+                            <button id="parentFolderBtn" onclick="navigateToParent()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="<?= t('at_root', 'At Root Directory') ?>" disabled>
+                                <i class="fas fa-level-up-alt"></i>
+                            </button>
+                            <button id="refreshBtn" onclick="refreshCurrentFolder()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('refresh', 'Refresh') ?>">
+                                <i class="fas fa-arrows-rotate"></i>
+                            </button>
+
+                            <!-- Separator -->
+                            <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+
+                            <!-- File Transfer Group -->
                             <button class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('upload_file', 'Upload File') ?>">
                                 <i class="fas fa-upload"></i>
                             </button>
                             <button onclick="downloadSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('download', 'Download') ?>">
                                 <i class="fas fa-download"></i>
                             </button>
+
+                            <!-- Separator -->
+                            <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+
+                            <!-- Create Group -->
                             <button onclick="createNewFile()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_file', 'New File') ?>">
                                 <i class="fas fa-file-circle-plus"></i>
                             </button>
                             <button onclick="createNewFolder()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('new_folder', 'New Folder') ?>">
                                 <i class="fas fa-folder-plus"></i>
                             </button>
-                            <button id="parentFolderBtn" onclick="navigateToParent()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition hidden" title="<?= t('parent_folder', 'Parent Folder') ?>">
-                                <i class="fas fa-level-up-alt"></i>
+
+                            <!-- Separator -->
+                            <div class="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+
+                            <!-- File Operations Group -->
+                            <button id="editBtn" onclick="editSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="<?= t('edit_file', 'Edit File') ?>" disabled>
+                                <i class="fas fa-pen-to-square"></i>
+                            </button>
+                            <button id="renameBtn" onclick="renameSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition opacity-50 cursor-not-allowed" title="<?= t('rename', 'Rename') ?>" disabled>
+                                <i class="fas fa-i-cursor"></i>
                             </button>
                             <button onclick="deleteSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('delete', 'Delete') ?>">
                                 <i class="fas fa-trash"></i>
-                            </button>
-                            <button onclick="renameSelected()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('rename', 'Rename') ?>">
-                                <i class="fas fa-pen"></i>
-                            </button>
-                            <button id="refreshBtn" onclick="refreshCurrentFolder()" class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition" title="<?= t('refresh', 'Refresh') ?>">
-                                <i class="fas fa-arrows-rotate"></i>
                             </button>
 
                             <!-- SSH-based Operations (shown only when SSH is enabled) -->

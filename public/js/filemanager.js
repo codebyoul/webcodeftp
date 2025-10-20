@@ -377,9 +377,8 @@ function updateSelectionUI() {
  * Update action button states based on selection
  */
 function updateActionButtonStates() {
-  const renameBtn = document.querySelector(
-    'button[onclick="renameSelected()"]'
-  );
+  const editBtn = document.getElementById("editBtn");
+  const renameBtn = document.getElementById("renameBtn");
   const deleteBtn = document.querySelector(
     'button[onclick="deleteSelected()"]'
   );
@@ -391,6 +390,37 @@ function updateActionButtonStates() {
   const fileCount = window.selectedItems.filter(
     (item) => item.type === "file"
   ).length;
+
+  // Edit: only enabled when exactly 1 file selected (not folder, not archive)
+  if (editBtn) {
+    if (count === 1 && window.selectedItems[0].type === "file") {
+      const file = window.selectedItems[0];
+      const extension = file.extension || "";
+      const isArchive = ["zip", "rar", "tar", "gz", "bz2", "7z", "tgz", "xz", "iso"].includes(extension.toLowerCase());
+
+      if (!isArchive) {
+        editBtn.disabled = false;
+        editBtn.classList.remove("opacity-50", "cursor-not-allowed");
+        editBtn.title = "Edit File";
+      } else {
+        editBtn.disabled = true;
+        editBtn.classList.add("opacity-50", "cursor-not-allowed");
+        editBtn.title = "Archive files cannot be edited";
+      }
+    } else if (count === 0) {
+      editBtn.disabled = true;
+      editBtn.classList.add("opacity-50", "cursor-not-allowed");
+      editBtn.title = "Select a file to edit";
+    } else if (count === 1 && window.selectedItems[0].type === "directory") {
+      editBtn.disabled = true;
+      editBtn.classList.add("opacity-50", "cursor-not-allowed");
+      editBtn.title = "Folders cannot be edited";
+    } else {
+      editBtn.disabled = true;
+      editBtn.classList.add("opacity-50", "cursor-not-allowed");
+      editBtn.title = "Select only one file to edit";
+    }
+  }
 
   // Rename: only enabled when exactly 1 item selected
   if (renameBtn) {
@@ -702,7 +732,7 @@ function updateSortIcons(activeColumn, direction) {
 }
 
 /**
- * Refresh current folder contents
+ * Refresh current folder contents (ELITE - instant UX with callbacks)
  */
 function refreshCurrentFolder() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -710,14 +740,21 @@ function refreshCurrentFolder() {
 
   const refreshBtn = document.getElementById("refreshBtn");
   const icon = refreshBtn.querySelector("i");
+
+  // Start spinning
   icon.classList.add("fa-spin");
 
-  // Re-trigger URL handler to refresh content
-  handleUrlChange();
-
-  setTimeout(() => {
+  // Load folder contents with callback to stop spinning exactly when done
+  if (typeof window.loadFolderContents === "function") {
+    window.loadFolderContents(currentPath, (data) => {
+      // Stop spinning immediately when loading completes (instant UX!)
+      icon.classList.remove("fa-spin");
+    });
+  } else {
+    // Fallback if loadFolderContents not available
+    handleUrlChange();
     icon.classList.remove("fa-spin");
-  }, 1000);
+  }
 }
 
 // =================================================================
@@ -2468,7 +2505,7 @@ function navigateToParent() {
 }
 
 /**
- * Update parent folder button visibility
+ * Update parent folder button state (always visible, disabled at root)
  */
 function updateParentButtonVisibility() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -2477,12 +2514,48 @@ function updateParentButtonVisibility() {
 
   if (!parentBtn) return;
 
-  // Show button only if not at root
+  // Disable button at root, enable otherwise
   if (currentPath === "/" || currentPath === "") {
-    parentBtn.classList.add("hidden");
+    parentBtn.disabled = true;
+    parentBtn.classList.add("opacity-50", "cursor-not-allowed");
+    parentBtn.title = "At Root Directory";
   } else {
-    parentBtn.classList.remove("hidden");
+    parentBtn.disabled = false;
+    parentBtn.classList.remove("opacity-50", "cursor-not-allowed");
+    parentBtn.title = "Go to Parent Folder";
   }
+}
+
+/**
+ * ============================================================================
+ * EDIT FILE
+ * ============================================================================
+ */
+
+/**
+ * Edit selected file (open in editor or preview)
+ */
+async function editSelected() {
+  // Check selection - should be exactly 1 file (button should be disabled otherwise)
+  if (window.selectedItems.length !== 1) {
+    showDialog("Please select exactly one file to edit.");
+    return;
+  }
+
+  const file = window.selectedItems[0];
+
+  // Double-check it's a file
+  if (file.type !== "file") {
+    showDialog("Folders cannot be edited.");
+    return;
+  }
+
+  // Use real_path for symlinks, fallback to path
+  const realPath = file.real_path || file.path;
+  const extension = file.extension || "";
+
+  // Open the file in editor or preview (uses existing previewFile function)
+  previewFile(realPath, extension);
 }
 
 /**
