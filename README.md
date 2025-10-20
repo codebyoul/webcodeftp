@@ -34,6 +34,19 @@
 
 ---
 
+## 📸 Screenshots
+
+### Login Page
+![Login Page](.github/images/screenshot-login.png)
+
+### File Manager
+![File Manager](.github/images/screenshot-home.png)
+
+### Integrated Code Editor
+![Code Editor](.github/images/screenshot-code.png)
+
+---
+
 ## 🚀 Quick Start
 
 ### Requirements
@@ -314,14 +327,6 @@ Built with amazing open-source technologies:
 - 💬 Community support
 
 **Thank you for being awesome!** 🙏
-
----
-
-## 🔐 Security Vulnerabilities
-
-If you discover a security vulnerability, please email: **aoulmderat@gmail.com**
-
-**Do NOT open a public issue** for security concerns.
 
 ---
 
