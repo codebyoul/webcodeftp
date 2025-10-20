@@ -37,7 +37,7 @@ Feature requests are welcome! When suggesting features, please:
    git checkout -b feature/your-feature-name
    ```
 
-2. **Follow the development guidelines** in [CLAUDE.md](CLAUDE.md):
+2. **Follow the development guidelines**:
    - PHP 8.0+ compatible (no PHP 8.1+ exclusive features)
    - Follow PSR-12 coding standards
    - Use strict types (`declare(strict_types=1)`)
@@ -240,7 +240,6 @@ document.addEventListener('DOMContentLoaded', function() {
 ## Documentation
 
 - Update [README.md](README.md) for user-facing changes
-- Update [CLAUDE.md](CLAUDE.md) for development guidelines
 - Add comments for complex logic
 - Update translation files for new text
 
@@ -265,7 +264,6 @@ When adding new user-facing text:
 
 ## Questions?
 
-- Review [CLAUDE.md](CLAUDE.md) for comprehensive development guidelines
 - Check existing code for examples
 - Open a discussion on GitHub
 - Email: aoulmderat@gmail.com
