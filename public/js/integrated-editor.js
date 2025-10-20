@@ -323,18 +323,35 @@ function getFileTypeName(extension) {
  * Monitor for changes
  */
 document.addEventListener("DOMContentLoaded", function () {
-  // Monitor for modified state
+  // Monitor for modified state and update badges + Save button state
   setInterval(() => {
     if (window.codeMirrorEditor && currentEditingFile) {
       const badge = document.getElementById("editorModifiedBadge");
       const topBadge = document.getElementById("editorToolbarModifiedBadge");
+      const saveBtn = document.getElementById("editorToolbarSaveBtn");
 
-      if (window.codeMirrorEditor.isModified()) {
+      const isModified = window.codeMirrorEditor.isModified();
+
+      // Update Modified badges
+      if (isModified) {
         if (badge) badge.classList.remove("hidden");
         if (topBadge) topBadge.classList.remove("hidden");
       } else {
         if (badge) badge.classList.add("hidden");
         if (topBadge) topBadge.classList.add("hidden");
+      }
+
+      // Update Save button state (disabled when no changes)
+      if (saveBtn) {
+        if (isModified) {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove("opacity-50", "cursor-not-allowed");
+          saveBtn.title = "Save (Ctrl+S)";
+        } else {
+          saveBtn.disabled = true;
+          saveBtn.classList.add("opacity-50", "cursor-not-allowed");
+          saveBtn.title = "No changes to save";
+        }
       }
     }
   }, 500);

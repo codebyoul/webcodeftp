@@ -326,16 +326,16 @@
 
                 <!-- File Content Area -->
                 <div id="mainContentArea" class="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
-                    <!-- Loading State -->
-                    <div id="contentLoading" class="hidden flex items-center justify-center h-full">
+                    <!-- Loading State (shown by default on page load) -->
+                    <div id="contentLoading" class="flex items-center justify-center h-full">
                         <div class="text-center">
                             <i class="fas fa-spinner fa-spin text-4xl text-primary-500 mb-4"></i>
                             <p class="text-gray-600 dark:text-gray-400">Loading...</p>
                         </div>
                     </div>
 
-                    <!-- Empty State -->
-                    <div id="contentEmpty" class="flex items-center justify-center h-full">
+                    <!-- Empty State (hidden by default) -->
+                    <div id="contentEmpty" class="hidden flex items-center justify-center h-full">
                         <div class="text-center px-6">
                             <i class="fas fa-folder-open text-gray-300 dark:text-gray-600 text-6xl mb-4"></i>
                             <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2"><?= t('select_folder', 'Select a Folder') ?></h3>
