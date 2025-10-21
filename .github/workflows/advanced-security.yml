@@ -1,0 +1,200 @@
+name: Security scans
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ main ]
+
+env:
+  PHP_VERSION: '8.0'    # Adjust if you prefer 8.2/8.3
+
+jobs:
+  prepare:
+    name: Prepare repo & PHP
+    runs-on: ubuntu-latest
+    outputs:
+      has-composer: ${{ steps.check.outputs.has_composer }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo, pdo_mysql, ftp
+          coverage: none
+
+      - name: Check for composer.json
+        id: check
+        run: |
+          if [ -f composer.json ]; then
+            echo "has_composer=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_composer=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install composer deps (if composer.json)
+        if: steps.check.outputs.has_composer == 'true'
+        run: |
+          composer install --no-interaction --prefer-dist || true
+        timeout-minutes: 20
+
+  dependency-audit:
+    name: Composer / Dependency checks
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has-composer == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP for audit
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+
+      - name: Composer - show version
+        run: composer --version || true
+
+      - name: Composer audit (Composer >= 2.4)
+        id: compaudit
+        run: |
+          if composer --version | grep -q "Composer"; then
+            composer audit --format=json > composer-audit.json || true
+            echo "composer-audit=true" >> $GITHUB_OUTPUT || true
+          else
+            echo "composer-audit=false" >> $GITHUB_OUTPUT || true
+          fi
+
+      - name: Upload composer audit
+        if: always() && (exists('composer-audit.json') || true)
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-audit
+          path: composer-audit.json
+
+      - name: Add Roave advisory (optional)
+        run: composer require --dev roave/security-advisories:^1 || true
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install semgrep
+        run: |
+          python3 -m pip install --user semgrep
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep --version
+
+      - name: Run semgrep scan
+        env:
+          HOMEDIR: ${{ runner.temp }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep --config p/php --json --output semgrep-report.json || true
+
+      - name: Upload semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+
+  sast-php:
+    name: Optional PHP SAST (PHPStan / Psalm)
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.has-composer == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+
+      - name: Run PHPStan if present
+        run: |
+          if [ -x vendor/bin/phpstan ]; then
+            vendor/bin/phpstan analyse -l max src || true
+          elif command -v phpstan >/dev/null 2>&1; then
+            phpstan analyse -l max src || true
+          else
+            echo "phpstan not found, skipping"
+          fi
+
+      - name: Run Psalm (taint) if present
+        run: |
+          if [ -x vendor/bin/psalm ]; then
+            vendor/bin/psalm --show-info=false --taint-analysis --report=psalm-security-report.xml || true
+            ls -la psalm-security-report.xml || true
+          else
+            echo "psalm not found, skipping"
+          fi
+
+      - name: Upload Psalm report (if exists)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: psalm-security-report
+          path: psalm-security-report.xml
+
+  secret-scan:
+    name: Secret scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run gitleaks
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: detect --source . --report-format json --report-path gitleaks-report.json || true
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+
+  dast-zap:
+    name: DAST - OWASP ZAP baseline (staging only)
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: ${{ secrets.STAGING_URL != '' }}
+    env:
+      TARGET_URL: ${{ secrets.STAGING_URL }}
+    steps:
+      - name: Run ZAP baseline scan
+        uses: zaproxy/action-baseline@v1
+        with:
+          target: ${{ env.TARGET_URL }}
+          rules_file_name: zap-rules.md
+          format: 'github'
+      - name: Upload ZAP artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-output
+          path: .
+
+  dependency-review:
+    name: Dependency review (GitHub)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency review
+        uses: github/dependency-review-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Summary (non-blocking)
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, semgrep, sast-php, secret-scan, dast-zap, dependency-review]
+    steps:
+      - name: Print summary message
+        run: |
+          echo "Security scan pipeline finished. Check artifacts (semgrep/psalm/composer/gitleaks/zap) and PR annotations for findings."
