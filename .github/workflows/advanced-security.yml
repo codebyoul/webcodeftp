@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  PHP_VERSION: '8.0'  # Change to 8.2/8.3 if needed
+  PHP_VERSION: '8.0'    # Adjust if you prefer 8.2 or 8.3
 
 jobs:
   prepare:
@@ -19,8 +19,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v3
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: mbstring, intl, pdo, pdo_mysql, ftp
@@ -47,9 +47,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v3
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
+
+      - name: Install composer deps
+        run: composer install --no-interaction --prefer-dist || true
 
       - name: Composer audit
         run: composer audit --format=json > composer-audit.json || true
@@ -62,7 +65,7 @@ jobs:
           path: composer-audit.json
 
       - name: Add Roave security advisory
-        run: composer require --dev roave/security-advisories:^1 || true
+        run: composer require --dev roave/security-advisories:dev-latest --no-update || true
 
   semgrep:
     name: Semgrep SAST Scan
@@ -71,15 +74,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Semgrep
+      - name: Run Semgrep scan
         run: |
           python3 -m pip install --user semgrep
           export PATH="$HOME/.local/bin:$PATH"
           semgrep --version
-
-      - name: Run Semgrep scan
-        run: |
-          export PATH="$HOME/.local/bin:$PATH"
           semgrep --config p/php --json --output semgrep-report.json || true
 
       - name: Upload Semgrep report
@@ -98,9 +97,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v3
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
+
+      - name: Install composer deps
+        run: composer install --no-interaction --prefer-dist || true
 
       - name: Run PHPStan if present
         run: |
@@ -132,56 +134,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
       - name: Run Gitleaks
-        uses: zricethezav/gitleaks-action@v2
-        with:
-          args: detect --source . --report-format json --report-path gitleaks-report.json || true
-      - name: Upload Gitleaks report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitleaks-report
-          path: gitleaks-report.json
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+        continue-on-error: true
 
   dast-zap:
     name: DAST - OWASP ZAP baseline
     runs-on: ubuntu-latest
     needs: prepare
+    if: ${{ secrets.STAGING_URL != '' }}
     steps:
-      - name: Check STAGING_URL secret
-        run: |
-          if [ -z "${{ secrets.STAGING_URL }}" ]; then
-            echo "STAGING_URL not set, skipping ZAP scan"
-            exit 0
-          fi
+      - uses: actions/checkout@v4
 
       - name: Run ZAP baseline scan
-        uses: zaproxy/action-baseline@v1
+        uses: zaproxy/action-baseline@v0.12.0
         with:
           target: ${{ secrets.STAGING_URL }}
           rules_file_name: zap-rules.md
-          format: 'github'
 
       - name: Upload ZAP artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zap-output
-          path: .
+          path: zap_scan_report.*
 
   dependency-review:
     name: GitHub Dependency Review
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - name: Run Dependency Review
-        uses: github/dependency-review-action@v2
+        uses: actions/dependency-review-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   summary:
     name: Summary
     runs-on: ubuntu-latest
-    needs: [dependency-audit, semgrep, sast-php, secret-scan, dast-zap, dependency-review]
+    needs: [dependency-audit, semgrep, sast-php, secret-scan]
+    if: always()
     steps:
       - name: Print summary
         run: |
