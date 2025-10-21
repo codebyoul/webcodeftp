@@ -1,7 +1,12 @@
 {
-    "name": "webcodeftp/webcodeftp",
+    "name": "codebyoul/webcodeftp",
     "description": "WebCodeFTP - Web-Based FTP Client with Integrated Code Editor (CodeMirror)",
     "type": "project",
+    "homepage": "https://github.com/codebyoul/webcodeftp",
+    "support": {
+        "issues": "https://github.com/codebyoul/webcodeftp/issues",
+        "source": "https://github.com/codebyoul/webcodeftp"
+    },
     "keywords": [
         "ftp",
         "web-ftp",
