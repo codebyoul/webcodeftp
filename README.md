@@ -14,7 +14,6 @@
 
 **Enjoying WebCodeFTP?** Your support helps maintain the website, documentation, and keep this project alive!
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-☕-orange.svg?logo=ko-fi)](https://ko-fi.com/codebyoul)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-💖-pink.svg?logo=github)](https://github.com/sponsors/codebyoul)
 [![PayPal](https://img.shields.io/badge/PayPal-💳-blue.svg?logo=paypal)](https://www.paypal.com/donate/?hosted_button_id=5AX5S82LDZQ8N)
 
@@ -209,39 +208,6 @@ WebCodeFTP uses a **single configuration file** at `config/config.php`. This is 
 
 ---
 
-## 📖 How to Use
-
-### 1. Login
-- Navigate to `https://your-domain.com`
-- Enter your **FTP username and password**
-- Click "Sign In"
-
-### 2. Browse Files
-- Use the **folder tree** (left sidebar) to navigate
-- Click folders to expand/collapse
-- Files appear in the **main list view** (right panel)
-
-### 3. Edit Code Files
-- Click any code file to **open the editor**
-- **Syntax highlighting** automatically detects the language
-- Press `Ctrl+S` (or `Cmd+S` on Mac) to **save**
-- Changes are **saved directly** to the FTP server
-
-### 4. File Operations
-- **Create** new files/folders (toolbar buttons)
-- **Rename** files/folders (select → rename button)
-- **Delete** files/folders (select → delete button)
-- **Download** files (select → download button)
-- **Zip/Unzip** files (if SSH enabled)
-- **Move** files (if SSH enabled)
-
-### 5. Multi-Language & Theme
-- Click your **profile icon** (top-right)
-- Select **language** from dropdown
-- Toggle **theme** (Light/Dark)
-
----
-
 ## 🎨 Supported Languages (Syntax Highlighting)
 
 PHP, JavaScript, TypeScript, HTML, CSS, Python, Java, C, C++, Go, Rust, Ruby, Swift, Kotlin, Scala, SQL, JSON, XML, YAML, Markdown, **and 30+ more!**
@@ -258,30 +224,6 @@ PHP, JavaScript, TypeScript, HTML, CSS, Python, Java, C, C++, Go, Rust, Ruby, Sw
 - ✅ **Path Traversal Protection** - Prevents directory escape attacks
 - ✅ **Security Headers** - CSP, X-Frame-Options, X-XSS-Protection
 - ✅ **No Credential Storage** - FTP passwords never logged or stored
-
----
-
-## 🛠️ Troubleshooting
-
-### "Failed to connect to FTP server"
-- Verify FTP credentials are correct
-- Check firewall allows FTP port (21/990)
-- Ensure `php-ftp` extension is installed: `php -m | grep ftp`
-
-### Session errors
-- Ensure PHP session directory is writable
-- Check `session.save_path` in php.ini
-
-### SSH features not working
-- Run `composer install` to ensure phpseclib is installed
-- Verify SSH credentials in `config/config.php`
-- Test SSH connection: `ssh username@hostname`
-- Check logs: `tail -f logs/app.log`
-
-### "Invalid security token"
-- Enable cookies in your browser
-- If using HTTPS, set `cookie_secure => true` in config
-- If using HTTP (dev), set `cookie_secure => false`
 
 ---
 
@@ -318,7 +260,6 @@ Built with amazing open-source technologies:
 ### Ways to Support:
 
 - ⭐ **Star this repository** - Show your appreciation!
-- ☕ **[Ko-fi](https://ko-fi.com/codebyoul)** - Any help is appreciated to maintain the website, docs, and project
 - 💖 **[GitHub Sponsors](https://github.com/sponsors/codebyoul)** - Support ongoing development
 - 💳 **[PayPal](https://www.paypal.com/donate/?hosted_button_id=5AX5S82LDZQ8N)** - One-time or recurring donations
 - 🐛 **Report Bugs** - Open issues on GitHub
