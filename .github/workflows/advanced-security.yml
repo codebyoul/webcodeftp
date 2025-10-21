@@ -148,18 +148,28 @@ jobs:
     name: DAST - OWASP ZAP baseline
     runs-on: ubuntu-latest
     needs: prepare
-    if: ${{ secrets.STAGING_URL != '' }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if STAGING_URL is set
+        id: check_url
+        run: |
+          if [ -n "${{ secrets.STAGING_URL }}" ]; then
+            echo "url_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "url_exists=false" >> $GITHUB_OUTPUT
+            echo "STAGING_URL not set, skipping ZAP scan"
+          fi
+
       - name: Run ZAP baseline scan
+        if: steps.check_url.outputs.url_exists == 'true'
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: ${{ secrets.STAGING_URL }}
           rules_file_name: zap-rules.md
 
       - name: Upload ZAP artifacts
-        if: always()
+        if: always() && steps.check_url.outputs.url_exists == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: zap-output
